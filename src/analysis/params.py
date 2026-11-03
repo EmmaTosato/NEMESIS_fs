@@ -174,7 +174,7 @@ def load_tuning_grid(params_file: str | Path, method: str) -> dict[str, list]:
     Raises ValueError if `method` has no "tuning_grid" entry, if it isn't a
     JSON object mapping each hyperparameter to a non-empty list of values,
     or if any value in one of those lists is itself a nested list/object -
-    such a value is later used as part of a dict key (AUDIT_FINDINGS.md #56,
+    such a value is later used as part of a dict key (docs/debugging/debug_17_08_26.md #56,
     lesson #8) and would otherwise raise a cryptic TypeError far downstream
     instead of a clear error here. Also raises ValueError if an axis repeats a
     value: the sweep would evaluate the same combination twice while its

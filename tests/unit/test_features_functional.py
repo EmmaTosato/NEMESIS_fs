@@ -94,7 +94,7 @@ def test_load_atlas_valid(tmp_path):
 
 
 def test_load_atlas_duplicate_index_raises(tmp_path):
-    """AUDIT_FINDINGS.md #28 regression: label_table["index"] duplicates used to be
+    """docs/debugging/debug_17_08_26.md #28 regression: label_table["index"] duplicates used to be
     collapsed silently into id_to_name (a plain dict keyed on it, mask_dataset_fc) -
     lesson #5. A dseg.tsv with two rows sharing the same index (e.g. a merge of two
     partial atlases with unreconciled numbering) must raise instead."""
@@ -110,7 +110,7 @@ def test_load_atlas_duplicate_index_raises(tmp_path):
 
 
 def test_load_atlas_index_absent_from_volume_raises(tmp_path):
-    """AUDIT_FINDINGS.md #27 regression: an 'index' present in the tsv but absent from
+    """docs/debugging/debug_17_08_26.md #27 regression: an 'index' present in the tsv but absent from
     the atlas volume (e.g. a version update that renumbers labels without updating the
     paired volume) used to only surface later as a raw KeyError from
     compute_parcel_coverage's total_by_label[lbl] lookup - now caught explicitly at
@@ -235,7 +235,7 @@ def test_vectorize_upper_triangle_tolerates_symmetric_nan_from_masking():
 
 
 def test_vectorize_upper_triangle_asymmetric_matrix_raises():
-    """AUDIT_FINDINGS.md #30 regression: vectorize_upper_triangle used to assume
+    """docs/debugging/debug_17_08_26.md #30 regression: vectorize_upper_triangle used to assume
     symmetry without ever checking it - an asymmetric matrix (e.g. a future mask_fc.py
     bug, or a hand-edited debug file) would silently discard the (differing) lower
     triangle instead of raising."""
@@ -462,7 +462,7 @@ def test_drop_constant_edges_none_found():
 
 
 def test_drop_constant_edges_single_subject_keeps_all_edges(caplog):
-    """AUDIT_FINDINGS.md #55 regression: with a single subject, every fully-observed edge
+    """docs/debugging/debug_17_08_26.md #55 regression: with a single subject, every fully-observed edge
     trivially has min==max (only one value to compare) - used to be dropped entirely (0
     edges surviving), silently, with only a generic "N edges dropped" log that didn't
     identify the real cause (1 subject, not a data problem). Must keep every edge instead,

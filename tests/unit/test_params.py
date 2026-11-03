@@ -213,7 +213,7 @@ def test_load_tuning_grid_non_dict_raises(tmp_path):
 
 
 def test_load_tuning_grid_nested_list_value_raises(tmp_path):
-    """AUDIT_FINDINGS.md #56 regression: a value list with a nested list/object element
+    """docs/debugging/debug_17_08_26.md #56 regression: a value list with a nested list/object element
     (e.g. a typo'd extra bracket, [5, 15, [30]] instead of [5, 15, 30]) used to pass this
     validation (it's still a non-empty list) and only fail much later with a cryptic
     `TypeError: unhashable type: 'list'` from itertools.product/tuple(combo_values), the
@@ -295,7 +295,7 @@ def test_load_nested_params_too_many_free_params_raises(tmp_path):
 
 
 # --- load_consensus_config -------------------------------------------------------
-# AUDIT_FINDINGS.md #69 (found 22/08 while triaging an unrelated stale git stash):
+# docs/debugging/debug_17_08_26.md #69 (found 22/08 while triaging an unrelated stale git stash):
 # load_consensus_config/consensus_suggestion_lines/run_clustering_tuning_sweep's
 # consensus_config path are all already implemented and used in production
 # (src/analysis/consensus_clustering.py's RSC/Monti), but had no direct unit test

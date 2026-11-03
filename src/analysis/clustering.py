@@ -9,12 +9,16 @@ config/registry/params_clustering.json (see src/analysis/params.py).
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 from sklearn.cluster import HDBSCAN, AgglomerativeClustering, KMeans, SpectralClustering
 from sklearn.mixture import GaussianMixture
 
 from src.analysis.adp import adp_cluster
+
+if TYPE_CHECKING:  # `hdbscan` is imported inside hdbscan_soft_fit: only the annotations need it here
+    import hdbscan
 
 
 def kmeans_cluster(X: np.ndarray, params: dict) -> np.ndarray:
@@ -33,7 +37,7 @@ def hdbscan_cluster(X: np.ndarray, params: dict) -> np.ndarray:
     return HDBSCAN(**params).fit_predict(X)
 
 
-def hdbscan_soft_fit(X: np.ndarray, params: dict):
+def hdbscan_soft_fit(X: np.ndarray, params: dict) -> hdbscan.HDBSCAN:
     """The fitted HDBSCAN of the standalone `hdbscan` package, with `prediction_data=True` so that
     `hdbscan.all_points_membership_vectors` (soft clustering: one probability per subject and cluster)
     works on it. The package is a different implementation from scikit-learn's and shares neither its
@@ -50,7 +54,7 @@ def hdbscan_soft_cluster(X: np.ndarray, params: dict) -> np.ndarray:
     return hdbscan_soft_fit(X, params).labels_
 
 
-def soft_membership_matrix(fitted) -> np.ndarray:
+def soft_membership_matrix(fitted: hdbscan.HDBSCAN) -> np.ndarray:
     """The soft clustering of a `hdbscan_soft_fit` estimator: (n_subjects, n_clusters), entry [i, j] the
     probability that subject i belongs to cluster j (`hdbscan.all_points_membership_vectors`). The rows do
     not sum to 1: what is missing is the probability of being noise. The package numbers its clusters

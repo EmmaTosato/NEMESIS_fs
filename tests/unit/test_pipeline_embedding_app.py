@@ -1,5 +1,5 @@
 """Unit tests for src/pipeline/embedding_app.py's main() (the CLI entry point) -
-AUDIT_FINDINGS.md #45: this file didn't exist before, main()'s own error handling
+docs/debugging/debug_17_08_26.md #45: this file didn't exist before, main()'s own error handling
 (specifically app.run()'s OSError) had no test coverage of its own (only
 src/analysis/embedding_app/'s underlying functions were tested).
 """
@@ -96,7 +96,7 @@ def test_main_no_production_runs_found_returns_1(tmp_path, monkeypatch):
 
 
 def test_main_server_port_in_use_returns_1_not_raw_traceback(tmp_path, monkeypatch):
-    """AUDIT_FINDINGS.md #45 regression: app.run() used to have no try/except at all - an
+    """docs/debugging/debug_17_08_26.md #45 regression: app.run() used to have no try/except at all - an
     OSError from a port already in use (a realistic scenario: a leftover instance of this
     same app already running) propagated as a raw traceback instead of a clean return 1."""
     monkeypatch.setattr(embedding_app, "discover_production_runs", lambda results_root: [_fake_run()])

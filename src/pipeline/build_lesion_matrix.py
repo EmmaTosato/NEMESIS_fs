@@ -285,7 +285,7 @@ def _config_summary(config: BuildMatrixConfig) -> str:
 
 def _params_used(config: BuildMatrixConfig) -> dict:
     """Same params dict passed to append_run_log_entry (main()) - the fields that actually
-    control matrix construction. AUDIT_FINDINGS.md #49: exposed here too as a single
+    control matrix construction. docs/debugging/debug_17_08_26.md #49: exposed here too as a single
     "Params used: {...}" line (_summary_lines below), the same line-per-run convention
     dim_reduction.py/clustering.py already standardize on (and embedding_app/runs.py's
     run_params already parses for those two pipelines) - this pipeline had only the
@@ -331,7 +331,7 @@ def _summary_lines(
     lines += ["", "| dataset | subjects |", "|---|---|"]
     for name, count in _dataset_counts(built.metadata).items():
         lines.append(f"| {name} | {count} |")
-    # AUDIT_FINDINGS.md #48: excluded_by_group used to be logged only (logs/ isn't a
+    # docs/debugging/debug_17_08_26.md #48: excluded_by_group used to be logged only (logs/ isn't a
     # permanent artifact the way config.md is) - now persisted here too, so "why does this
     # matrix have fewer subjects than expected" is answerable from config.md alone, months
     # later, without the run's original log file. excluded_rows follows the same convention

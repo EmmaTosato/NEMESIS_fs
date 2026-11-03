@@ -108,13 +108,16 @@ def test_pairwise_distance_continuous_dice_and_jaccard_match_hand_computed_value
 
 
 @pytest.mark.parametrize("metric", ["jaccard", "dice"])
-def test_pairwise_distance_continuous_formula_reduces_to_the_classic_one_on_zero_one_data(metric, monkeypatch):
+def test_pairwise_distance_continuous_formula_reduces_to_the_classic_one_on_scaled_zero_one_data(metric):
     rng = np.random.default_rng(2)
-    X = (rng.random((20, 50)) < 0.3).astype(np.float64)
-    X[:, 0] = 1
-    monkeypatch.setattr(distances, "_is_binary", lambda X: False)  # force the weighted (L1) branch
+    binary = (rng.random((20, 50)) < 0.3).astype(np.float64)
+    binary[:, 0] = 1
+    # 0/1 values would take the binary branch; times 2 they reach the weighted (L1) one, and both
+    # distances are scale-invariant, so the result must be the classic one of the 0/1 matrix.
+    scaled = 2.0 * binary
+    assert not distances._is_binary(scaled)
 
-    assert np.allclose(pairwise_distance(X, metric), binary_pairwise_distance(X, metric))
+    assert np.allclose(pairwise_distance(scaled, metric), binary_pairwise_distance(binary, metric))
 
 
 def test_pairwise_distance_blocks_give_the_same_result_as_a_single_block(monkeypatch):

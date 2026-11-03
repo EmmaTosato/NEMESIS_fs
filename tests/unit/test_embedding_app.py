@@ -305,7 +305,7 @@ def test_load_run_rejects_embeddings_with_wrong_dimensionality(tmp_path, n_dims)
 
 
 def test_load_run_undisplayable_clustering_run_does_not_suggest_viz_n_components(tmp_path):
-    """AUDIT_FINDINGS.md #43/#44 regression: the error message used to always say "Rerun
+    """docs/debugging/debug_17_08_26.md #43/#44 regression: the error message used to always say "Rerun
     dim_reduction pipeline with viz_n_components 2 or 3" regardless of which pipeline
     produced the run - clustering.py has no viz_n_components field at all (it never
     reduces dimensionality itself), so that advice is actionable only for a real
@@ -554,7 +554,7 @@ def test_build_embedding_figure_continuous_with_missing_adds_missing_trace(_part
 
 
 def test_build_embedding_figure_all_missing_skips_empty_colored_trace():
-    """AUDIT_FINDINGS.md #65 regression: the colored trace used to be added
+    """docs/debugging/debug_17_08_26.md #65 regression: the colored trace used to be added
     unconditionally - with every value NaN (e.g. "nihss" on a dataset never enriched via
     with no NIHSS recorded at all), it got x=[]/y=[] but still showed up as a ghost legend
     entry (mode.label) with no visible marker, alongside the real "missing" trace."""
@@ -882,7 +882,7 @@ def test_run_params_config_md_without_params_line_raises(tmp_path):
 
 
 def test_n_components_option_label_maps_sentinel_to_readable_placeholder():
-    """AUDIT_FINDINGS.md #64 regression: NO_N_COMPONENTS (-1) used to be labeled str(-1) -
+    """docs/debugging/debug_17_08_26.md #64 regression: NO_N_COMPONENTS (-1) used to be labeled str(-1) -
     the literal string "-1" would show up as a dropdown option in the "Componenti" picker
     for any clustering.py run, instead of a readable placeholder like NO_METRIC already has
     for the analogous metric-picker case."""

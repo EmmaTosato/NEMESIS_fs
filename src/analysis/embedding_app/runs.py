@@ -297,7 +297,7 @@ def load_run(run: ProductionRun) -> tuple[np.ndarray, pd.DataFrame]:
         return _load_viz_twin(run, twin_path, metadata), metadata
 
     n_dims = shape[1]
-    # AUDIT_FINDINGS.md #43/#44: this message used to always point at dim_reduction.py's
+    # docs/debugging/debug_17_08_26.md #43/#44: this message used to always point at dim_reduction.py's
     # viz_n_components, even for a clustering.py run - clustering.py has no such config
     # field (it never reduces dimensionality itself, see docs/dev/models.md's
     # "reduced_data (declarative-only)" section) and rerunning it would leave matrix.npy's

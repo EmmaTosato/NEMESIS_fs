@@ -62,9 +62,8 @@ def test_count_groups_with_no_subject_folder_raises_instead_of_a_table_of_zeros(
         table.count_groups(tmp_path)
 
 
-def test_count_groups_rejects_a_group_outside_st_hc(tmp_path, monkeypatch):
-    (tmp_path / subject_id(1)).mkdir()
-    monkeypatch.setattr(table, "group_of", lambda subject: "PD")
+def test_count_groups_rejects_a_group_outside_st_hc(tmp_path):
+    (tmp_path / "sub-PDUNIPD0001").mkdir()  # a real PD subject: valid ID, group not in the table
     with pytest.raises(ValueError, match="group 'PD' not in"):
         table.count_groups(tmp_path)
 

@@ -59,7 +59,7 @@ def test_discover_files_by_subject_applies_group_filter(tmp_path):
 
 
 def test_discover_files_by_subject_malformed_name_raises_even_without_group_filter(tmp_path):
-    """AUDIT_FINDINGS.md #26 regression: group_of() (which validates the ST/HC/PD/GM
+    """docs/debugging/debug_17_08_26.md #26 regression: group_of() (which validates the ST/HC/PD/GM
     naming convention) used to run only when group_filter was set - a malformed
     subject_id (here missing the dash after "sub") passed through silently whenever
     group_filter=None, the most common config (lesson #4)."""

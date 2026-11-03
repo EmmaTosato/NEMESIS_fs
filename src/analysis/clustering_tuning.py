@@ -87,7 +87,7 @@ DENSITY_SWEEP_METHODS = ("hdbscan", "hdbscan_soft")
 # treated X as Euclidean. Explicit allow-list (lesson #20) of every affinity/metric
 # value that still means that; anything else (most importantly affinity="precomputed")
 # makes compute_clustering_metrics refuse rather than silently score the wrong
-# geometry - see docs/dev/models.md for the full rationale (dormant today, AUDIT_FINDINGS.md #13).
+# geometry - see docs/dev/models.md for the full rationale (dormant today, docs/debugging/debug_17_08_26.md #13).
 _EUCLIDEAN_SAFE_AFFINITY = frozenset({None, "nearest_neighbors", "rbf"})
 _EUCLIDEAN_SAFE_METRIC = frozenset({None, "euclidean"})
 

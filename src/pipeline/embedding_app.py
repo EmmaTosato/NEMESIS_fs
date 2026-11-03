@@ -149,7 +149,7 @@ def main(argv: list[str] | None = None) -> int:
 
     logging.info("serving %d run(s) on http://127.0.0.1:%d - Ctrl+C to stop", len(runs), args.port)
     try:
-        # AUDIT_FINDINGS.md #45: OSError (e.g. "Address already in use" from a
+        # docs/debugging/debug_17_08_26.md #45: OSError (e.g. "Address already in use" from a
         # leftover instance on the same --port) used to propagate as a raw traceback.
         # KeyboardInterrupt (Ctrl+C, this app's own documented stop mechanism, logged
         # above) is deliberately NOT caught here - that's a normal, clean shutdown, not

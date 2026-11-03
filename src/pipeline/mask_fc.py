@@ -13,7 +13,7 @@ Processes every atlas_combo listed in the config sequentially, one
 mask_dataset_fc() call per combo, each writing to its own subfolder under
 output_root - a subject-count mismatch or a missing atlas file for one combo
 stops that combo's processing (raises), but does not touch combos already
-written successfully earlier in the same run. AUDIT_FINDINGS.md #52: unlike
+written successfully earlier in the same run. docs/debugging/debug_17_08_26.md #52: unlike
 build_fc_matrix.py (which isolates a not-yet-ready combo from its siblings,
 see #29), a raise here also aborts every *remaining* atlas_combo in the same
 config, in list order - main()'s per-combo loop returns 1 immediately on the

@@ -63,7 +63,7 @@ def _make_lesion_subject_pipeline_first(data_root, dataset, subject_id, lesion_v
 
 
 def test_build_lesion_matrix_binarize_threshold_one_raises(tmp_path):
-    """AUDIT_FINDINGS.md #68 regression: binarize_threshold=1.0 passes config-load range
+    """docs/debugging/debug_17_08_26.md #68 regression: binarize_threshold=1.0 passes config-load range
     validation (0.0-1.0 inclusive) but is degenerate for a strict '>' comparison against
     resampled lesion values typically in [0, 1] - every subject's mask binarizes to zero
     voxels silently, with no error identifying binarize_threshold as the cause, until it
@@ -242,7 +242,7 @@ def test_build_lesion_matrix_subject_count_mismatch_raises(tmp_path):
 
 
 def test_build_lesion_matrix_malformed_subject_dir_name_raises_even_without_group_filter(tmp_path):
-    """AUDIT_FINDINGS.md #46 regression (twin gap of #26, here in _discover_lesion_files'
+    """docs/debugging/debug_17_08_26.md #46 regression (twin gap of #26, here in _discover_lesion_files'
     own subject_dirs sanity check): group_of() used to validate subject_dirs naming only
     when group_filter was set - a malformed subject folder (here missing the dash after
     "sub", a realistic hand-copy typo) with no lesion file at all inside it used to surface

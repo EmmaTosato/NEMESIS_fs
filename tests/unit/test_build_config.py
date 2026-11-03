@@ -236,7 +236,7 @@ def test_mask_fc_group_filter_unknown_group_raises(tmp_path):
         load_mask_fc_config(_write_mask_fc(tmp_path, {"group_filter": ["XX"]}))
 
 
-# AUDIT_FINDINGS.md #51: test coverage for load_mask_fc_config was limited to group_filter
+# docs/debugging/debug_17_08_26.md #51: test coverage for load_mask_fc_config was limited to group_filter
 # only - min_coverage/atlas_combos/resample_interpolation/binarize_threshold/fc_glob_template
 # (all required fields of the same loader) had no dedicated test at all.
 
@@ -277,7 +277,7 @@ def test_mask_fc_invalid_configs_raise_value_error(tmp_path, overrides, match):
 
 
 # --- load_build_fc_matrix_config ------------------------------------------------
-# AUDIT_FINDINGS.md #31: this loader had zero dedicated unit tests before (only
+# docs/debugging/debug_17_08_26.md #31: this loader had zero dedicated unit tests before (only
 # indirect coverage via tests/integration/test_build_fc_matrix_pipeline.py's
 # already-valid configs) - unlike its siblings above, a future required field added
 # to BuildFcMatrixConfig without validating it would go unnoticed by any test.

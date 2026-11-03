@@ -20,7 +20,7 @@ build_fc_matrix_from_masked() call per combo, each writing its own matrix
 artifact under output_root/<combo>/. atlas_combos are independent (each
 reads its own masked_fc/<combo>/ folder) - a combo whose input isn't ready
 yet is skipped (logged + recorded in the report's "Skipped" section), never
-aborting the other, already-ready combos in the same run (AUDIT_FINDINGS.md
+aborting the other, already-ready combos in the same run (docs/debugging/debug_17_08_26.md
 #29). main() returns 1 only if every configured combo failed - a partial
 run (>=1 combo built) still returns 0, with failures visible in the log and
 report.
@@ -77,7 +77,7 @@ def main(argv: list[str] | None = None) -> int:
         failed_combos: dict[str, str] = {}
         for combo in config.atlas_combos:
             input_dir = _input_dir(config, combo)
-            # AUDIT_FINDINGS.md #29: atlas_combos are independent (each reads its own
+            # docs/debugging/debug_17_08_26.md #29: atlas_combos are independent (each reads its own
             # masked_fc/<combo>/ folder) - a combo whose input isn't ready yet (mask_fc.py
             # not rerun for it, e.g. after a min_coverage change) must not block the other,
             # already-ready combos in the same config. Isolated per-combo (lesson #21);
@@ -277,7 +277,7 @@ def _write_report(config: BuildFcMatrixConfig, combo_reports: dict[str, dict], f
             f"| {combo} | {shape} | {report['n_dropped_constant_edges']} | "
             f"{int(nan_per_subject.min())}/{nan_per_subject.mean():.1f}/{int(nan_per_subject.max())} |"
         )
-    # AUDIT_FINDINGS.md #29: a combo skipped for lacking a ready masked_fc/<combo>/ input
+    # docs/debugging/debug_17_08_26.md #29: a combo skipped for lacking a ready masked_fc/<combo>/ input
     # (or any other per-combo build failure) is recorded here, not just logged - config.md
     # would otherwise look complete while silently missing some configured combos.
     if failed_combos:

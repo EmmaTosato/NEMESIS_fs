@@ -1155,7 +1155,7 @@ def load_tuning_data(umap_tuning_dir: Path, tsne_tuning_dir: Path) -> TuningData
             "(different subjects, order, or columns) - every figure needs the same cohort on both sides"
         )
 
-    # AUDIT_FINDINGS.md #62: set() before sorted() - defensive, not currently load-bearing
+    # docs/debugging/debug_17_08_26.md #62: set() before sorted() - defensive, not currently load-bearing
     # (every element already comes from a real, inherently-unique directory name on disk),
     # but not free to assume that stays true if this list is ever built from more than one
     # umap_tuning_dir in the future (a duplicate would otherwise call build_leaf_page twice

@@ -155,7 +155,7 @@ def compute_rsc_eigengap(cooccurrence_matrix: np.ndarray, k: int) -> float:
     anywhere (that's clustering_tuning.compute_eigengap's generic heuristic),
     but specifically the position that matters for this candidate k, matching
     the paper's own selection criterion (see docs/dev/models.md; wording
-    fixed for an off-by-one per AUDIT_FINDINGS.md #58 - the code itself was
+    fixed for an off-by-one per docs/debugging/debug_17_08_26.md #58 - the code itself was
     already correct).
     """
     if k < 1 or k >= cooccurrence_matrix.shape[0]:

@@ -1,5 +1,5 @@
 """Unit tests for src/pipeline/generate_understanding_umap_report.py's main() (the CLI
-entry point) - AUDIT_FINDINGS.md #61: this file didn't exist before, main()'s own argument
+entry point) - docs/debugging/debug_17_08_26.md #61: this file didn't exist before, main()'s own argument
 parsing/error handling had no test coverage of its own (only
 src/analysis/understanding_umap_report.py's underlying functions were tested).
 """

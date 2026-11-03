@@ -32,7 +32,7 @@ if TYPE_CHECKING:  # importing it for real would close a loop through the panels
 
 
 def _n_components_option_label(n: int) -> str:
-    """Dropdown label for one n_components value - AUDIT_FINDINGS.md #64:
+    """Dropdown label for one n_components value - docs/debugging/debug_17_08_26.md #64:
     NO_N_COMPONENTS (-1, the clustering-pipeline sentinel) gets NO_METRIC's own readable
     placeholder ("—") instead of the literal string "-1", the same treatment NO_METRIC
     already gets on the metric picker for the analogous case."""

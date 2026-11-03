@@ -553,7 +553,7 @@ def test_run_clustering_tuning_sweep_agglomerative_non_euclidean_has_nan_ch_db()
 
 
 # --- run_clustering_tuning_sweep(consensus_config=...) / consensus_suggestion_lines ---
-# AUDIT_FINDINGS.md #69 (found 22/08 while triaging an unrelated stale git stash):
+# docs/debugging/debug_17_08_26.md #69 (found 22/08 while triaging an unrelated stale git stash):
 # consensus_config wiring and consensus_suggestion_lines are already implemented and used
 # in production (src/pipeline/clustering.py), but had no direct unit test coverage before
 # this.

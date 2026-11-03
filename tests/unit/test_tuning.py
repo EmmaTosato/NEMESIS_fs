@@ -171,7 +171,7 @@ def test_evaluate_pca_with_varimax_returns_embedding_and_the_same_variance_as_wi
 
 
 def test_evaluate_pca_fits_the_decomposition_only_once(monkeypatch):
-    """AUDIT_FINDINGS.md #57 regression, kept for the `pca` method: the evaluation used to fit a
+    """docs/debugging/debug_17_08_26.md #57 regression, kept for the `pca` method: the evaluation used to fit a
     standalone PCA just to read the explained variance, then fit its own, identical one for the
     embedding - 2 decompositions per combination instead of 1."""
     import src.analysis.pca_method as pca_method

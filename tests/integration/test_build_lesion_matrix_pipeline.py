@@ -130,7 +130,7 @@ def test_build_lesion_matrix_group_filter_excludes_hc(tmp_path, monkeypatch):
     metadata = pd.read_csv(out_dir / "metadata.csv")
     assert list(metadata["subject_id"]) == ["sub-STUNIPD0001"]
 
-    # AUDIT_FINDINGS.md #48 regression: excluded_by_group used to be logged only (logs/,
+    # docs/debugging/debug_17_08_26.md #48 regression: excluded_by_group used to be logged only (logs/,
     # not a permanent artifact) - config.md (a permanent artifact next to matrix.npy) must
     # also record which subjects were excluded and why, not just the final subject count.
     config_md = (out_dir / "config.md").read_text()
@@ -139,7 +139,7 @@ def test_build_lesion_matrix_group_filter_excludes_hc(tmp_path, monkeypatch):
 
 
 def test_build_lesion_matrix_config_md_has_params_used_line(tmp_path, monkeypatch):
-    """AUDIT_FINDINGS.md #49 regression: build_lesion_matrix.py's config.md used to have
+    """docs/debugging/debug_17_08_26.md #49 regression: build_lesion_matrix.py's config.md used to have
     only the generic full-config JSON dump, never the single-line "Params used: {...}"
     form dim_reduction.py/clustering.py already standardize on (and
     embedding_app/runs.py::run_params already parses, for those two pipelines)."""

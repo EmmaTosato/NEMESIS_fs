@@ -314,7 +314,7 @@ def mask_dataset_fc(
             fc = pd.read_csv(fc_path, sep="\t", index_col=0)
             # mask_subject_fc -> mask_fc_by_lesion already raises ValueError for a node-order
             # mismatch (checking both .index/.columns) - no redundant pre-check here
-            # (AUDIT_FINDINGS.md #50, see docs/dev/fc_matrix.md).
+            # (docs/debugging/debug_17_08_26.md #50, see docs/dev/fc_matrix.md).
             fc_masked, compromised_names = mask_subject_fc(
                 lesion_img, fc, atlas_img, label_ids, node_names, min_coverage, resample_interpolation, binarize_threshold
             )
@@ -403,7 +403,7 @@ def drop_constant_edges(X: np.ndarray, edge_names: list[str]) -> tuple[np.ndarra
     value across every subject is unexpected and worth a human look.
 
     A single-subject X is a degenerate input this check was never meant to
-    answer (AUDIT_FINDINGS.md #55, see docs/dev/fc_matrix.md) - X is
+    answer (docs/debugging/debug_17_08_26.md #55, see docs/dev/fc_matrix.md) - X is
     returned unchanged rather than silently discarding every edge.
     """
     if X.shape[0] <= 1:

@@ -116,7 +116,7 @@ def discover_files_by_subject(
 
     by_subject = {subject: paths[0] for subject, paths in matches_by_subject.items()}
 
-    # AUDIT_FINDINGS.md #26: group_of() (which also validates the ST/HC/PD/GM naming
+    # docs/debugging/debug_17_08_26.md #26: group_of() (which also validates the ST/HC/PD/GM naming
     # convention itself) must run for every subject regardless of group_filter - lesson
     # #4, the most common branch (group_filter=None, "this dataset/config doesn't mix
     # groups") is exactly the one a naming-validation call must not skip, or a malformed

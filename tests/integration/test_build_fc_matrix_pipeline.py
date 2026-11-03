@@ -180,7 +180,7 @@ def test_build_fc_matrix_missing_input_raises(tmp_path, monkeypatch, caplog):
 
 
 def test_build_fc_matrix_one_combo_not_ready_does_not_abort_the_others(tmp_path, monkeypatch):
-    """AUDIT_FINDINGS.md #29 regression: atlas_combos are independent - a combo whose
+    """docs/debugging/debug_17_08_26.md #29 regression: atlas_combos are independent - a combo whose
     masked_fc/<combo>/ input isn't ready yet (e.g. mask_fc.py not rerun for it) must not
     abort combos that ARE ready in the same run. Pre-fix, the first combo in config order
     (alphabetically "ComboMissing" < "ComboReady") aborted main() via return 1 before

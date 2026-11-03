@@ -302,7 +302,7 @@ def _voxelwise_matrix_with_volume(
     metadata = metadata.copy()
     metadata["lesion_volume_voxels"] = X_voxelwise.sum(axis=1, dtype=np.int64)
 
-    # AUDIT_FINDINGS.md #68: binarize_threshold is range-validated at config load time
+    # docs/debugging/debug_17_08_26.md #68: binarize_threshold is range-validated at config load time
     # (0.0-1.0 inclusive, src/analysis/build_config.py), but 1.0 itself is a valid-looking
     # yet degenerate value - resampled lesion values are typically in [0, 1] and a strict
     # `>` comparison means nothing ever exceeds exactly 1.0, silently binarizing every
@@ -625,7 +625,7 @@ def _discover_lesion_files(
                 "this dataset under data_root if it isn't there yet"
             )
         # group_of() validates unconditionally, not only when group_filter is set -
-        # AUDIT_FINDINGS.md #46, see docs/dev/lesion_matrix.md.
+        # docs/debugging/debug_17_08_26.md #46, see docs/dev/lesion_matrix.md.
         dir_groups = {s: group_of(s) for s in subject_dirs}
         if group_filter is not None:
             subject_dirs = [s for s in subject_dirs if dir_groups[s] in group_filter]
