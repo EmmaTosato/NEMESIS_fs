@@ -1,5 +1,5 @@
 """Per-cluster demographic/clinical composition summary and plot (29-09-26, on request) - feeds
-the "Descrizione del cluster" panel in src/analysis/embedding_app.py.
+the "Descrizione del cluster" panel in src/analysis/embedding_app/panels/description.py.
 
 Every variable here is read from assets/metadata/participants.csv (the project's single subject
 registry, src.utils.participants.load_participants_registry) - never from a run's own

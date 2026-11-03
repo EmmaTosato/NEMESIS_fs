@@ -1,4 +1,4 @@
-"""Unit tests for the run-comparison section and the page index of src/analysis/embedding_app.py."""
+"""Unit tests for the run-comparison section and the page index of src/analysis/embedding_app/panels/comparison.py and tabs.py."""
 
 import json
 

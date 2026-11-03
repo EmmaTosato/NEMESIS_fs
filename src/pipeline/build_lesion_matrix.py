@@ -287,7 +287,7 @@ def _params_used(config: BuildMatrixConfig) -> dict:
     """Same params dict passed to append_run_log_entry (main()) - the fields that actually
     control matrix construction. AUDIT_FINDINGS.md #49: exposed here too as a single
     "Params used: {...}" line (_summary_lines below), the same line-per-run convention
-    dim_reduction.py/clustering.py already standardize on (and embedding_app.py's
+    dim_reduction.py/clustering.py already standardize on (and embedding_app/runs.py's
     run_params already parses for those two pipelines) - this pipeline had only the
     generic full-config JSON dump, never that single-line form."""
     params = {

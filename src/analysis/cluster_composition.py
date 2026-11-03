@@ -1,5 +1,5 @@
 """Composition of every cluster of a clustering run, side by side - feeds the "Composizione dei
-cluster" panel in src/analysis/embedding_app.py.
+cluster" panel in src/analysis/embedding_app/panels/description.py.
 
 Where cluster_description.py describes one chosen cluster, this module compares all of them: for
 each variable, one plot with a bar or box per cluster. Categorical variables (dataset, lesion

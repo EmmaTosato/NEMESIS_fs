@@ -8,7 +8,7 @@ n_components=3 leaves (see _TUNING_GRID_N_COMPONENTS in dim_reduction.py) - a no
 static 3D scatter is unreadable, so a 3-component leaf's real 3rd dimension is otherwise never
 actually visible anywhere. src.pipeline.embedding_app already solves exactly this for
 *production* runs (2D/3D auto, rotatable, color buttons) but is deliberately scoped to
-production only (see src/analysis/embedding_app.py's module docstring - tuning sweeps are a
+production only (see src/analysis/embedding_app/runs.py's module docstring - tuning sweeps are a
 different question, answered by src.pipeline.generate_understanding_umap_report's static grid
 instead). This script reuses embedding_app's own plotting primitive
 (build_embedding_figure - a pure function of embedding + metadata + color mode, no

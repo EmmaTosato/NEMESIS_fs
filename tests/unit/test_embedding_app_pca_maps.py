@@ -1,4 +1,4 @@
-"""Unit tests for the "Mappe delle componenti" panel of src/analysis/embedding_app.py."""
+"""Unit tests for the "Mappe delle componenti" panel of src/analysis/embedding_app/panels/pca_maps.py."""
 
 import json
 import os

@@ -1,4 +1,4 @@
-"""Plots of the "Valutazione del clustering" panel in src/analysis/embedding_app.py.
+"""Plots of the "Valutazione del clustering" panel in src/analysis/embedding_app/panels/quality.py.
 
 The numbers come from src/analysis/clustering_evaluation.py (geometric_summary); this module only
 draws them: the silhouette of every subject, cluster by cluster, the DBCV of every cluster of a density run and the

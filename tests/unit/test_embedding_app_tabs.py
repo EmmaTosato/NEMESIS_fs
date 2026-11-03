@@ -1,4 +1,4 @@
-"""Unit tests for the tabs of the Embedding Explorer page (src/analysis/embedding_app.py)."""
+"""Unit tests for the tabs of the Embedding Explorer page (src/analysis/embedding_app/tabs.py)."""
 
 import pytest
 

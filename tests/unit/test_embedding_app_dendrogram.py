@@ -1,4 +1,4 @@
-"""Unit tests for the dendrogram section of src/analysis/embedding_app.py."""
+"""Unit tests for the dendrogram section of src/analysis/embedding_app/panels/dendrogram.py."""
 
 import dataclasses
 import json

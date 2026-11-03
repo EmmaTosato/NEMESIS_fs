@@ -250,7 +250,7 @@ def build_split_tree(
 
 _FONT = {"family": "system-ui, -apple-system, sans-serif", "size": 14}
 
-# The embedding sits in a 560 px column (.dendrogram-step-body in embedding_app.py): fixing the width and the axis
+# The embedding sits in a 560 px column (.dendrogram-step-body in embedding_app/style.py): fixing the width and the axis
 # ranges makes data -> pixel exact, which is what keeping the labels apart needs.
 EMBEDDING_WIDTH = 560
 _EMBEDDING_MARGIN = {"l": 56, "r": 12, "t": 36, "b": 48}

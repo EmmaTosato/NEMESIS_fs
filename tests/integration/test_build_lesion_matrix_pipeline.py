@@ -142,7 +142,7 @@ def test_build_lesion_matrix_config_md_has_params_used_line(tmp_path, monkeypatc
     """AUDIT_FINDINGS.md #49 regression: build_lesion_matrix.py's config.md used to have
     only the generic full-config JSON dump, never the single-line "Params used: {...}"
     form dim_reduction.py/clustering.py already standardize on (and
-    embedding_app.py::run_params already parses, for those two pipelines)."""
+    embedding_app/runs.py::run_params already parses, for those two pipelines)."""
     monkeypatch.setattr(build_lesion_matrix, "LOGS_ROOT", tmp_path / "logs")
 
     data_root = tmp_path / "data"

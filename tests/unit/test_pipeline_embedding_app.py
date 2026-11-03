@@ -1,7 +1,7 @@
 """Unit tests for src/pipeline/embedding_app.py's main() (the CLI entry point) -
 AUDIT_FINDINGS.md #45: this file didn't exist before, main()'s own error handling
 (specifically app.run()'s OSError) had no test coverage of its own (only
-src/analysis/embedding_app.py's underlying functions were tested).
+src/analysis/embedding_app/'s underlying functions were tested).
 """
 
 import dataclasses

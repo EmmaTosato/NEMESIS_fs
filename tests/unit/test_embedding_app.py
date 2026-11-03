@@ -1,4 +1,4 @@
-"""Unit tests for src/analysis/embedding_app.py."""
+"""Unit tests for src/analysis/embedding_app/."""
 
 import json
 import logging

@@ -1,5 +1,5 @@
 """Comparison of two clustering runs - feeds the "Tra modalità" mode of the "Confronto" section in
-src/analysis/embedding_app.py (two clusters of the same run are compared in cluster_pair.py).
+src/analysis/embedding_app/panels/comparison.py (two clusters of the same run are compared in cluster_pair.py).
 
 Two runs are compared on the subjects they have in common: how much their partitions agree
 (ARI, NMI, homogeneity, completeness), where each cluster of one lands in the other (contingency

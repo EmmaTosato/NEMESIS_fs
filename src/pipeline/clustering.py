@@ -43,7 +43,7 @@ Two modes, chosen by `fine_tuning`, same convention as dim_reduction.py:
   from. No cross-method comparison artifact is written any more - the
   side-by-side production/comparison/ plot (static + interactive) was
   removed 01-09-26 on request (docs/dev/models.md); comparing methods means
-  opening each method's own cluster_plot.png/embedding_app.py run.
+  opening each method's own cluster_plot.png, or one run at a time in the Embedding Explorer.
 - fine_tuning=true (manual hyperparameter search, every method in
   clustering_methods, one sweep each over that method's "tuning_grid"):
   since clustering has no ground truth to score against, every combination
@@ -300,7 +300,7 @@ def _require_matching_reduction_run(input_path: Path, viz_embedding_path: Path) 
     to get a 2D/3D companion of an embedding space).
 
     Two checks, both content-based (never derived from either path's own directory structure -
-    unlike embedding_app.py's discover_production_runs, neither path here is guaranteed to sit
+    unlike embedding_app/runs.py's discover_production_runs, neither path here is guaranteed to sit
     under a <production>/<method>/ convention):
     - same reduction method (read_dim_reduction_method, each run's own config.md title line) -
       needed on top of the params comparison below, since two different methods' params dicts

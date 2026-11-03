@@ -233,7 +233,7 @@ def _color_values_for_mode(metadata: pd.DataFrame, mode: str) -> dict:
     occurrences in one report's embedded JSON before this fix. Plotly.js
     renders a null marker.color entry by simply not drawing that point, rather
     than an arbitrary/wrong color - not the dedicated gray "missing" trace
-    embedding_app.py uses for the same mode (a bigger redesign of this
+    embedding_app/embedding_view.py uses for the same mode (a bigger redesign of this
     module's client-side setColor()/legend, out of scope for this fix), but no
     longer silently wrong either.
     """

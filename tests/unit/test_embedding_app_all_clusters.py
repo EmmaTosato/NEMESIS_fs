@@ -1,4 +1,4 @@
-"""Unit tests for the "all" option of the Clustering Explorer's cluster picker (src/analysis/embedding_app.py)."""
+"""Unit tests for the "all" option of the Clustering Explorer's cluster picker (src/analysis/embedding_app/)."""
 
 import json
 import re

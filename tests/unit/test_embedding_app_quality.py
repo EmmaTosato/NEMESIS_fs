@@ -1,4 +1,4 @@
-"""Unit tests for the "Clustering evaluation" panel of src/analysis/embedding_app.py."""
+"""Unit tests for the "Clustering evaluation" panel of src/analysis/embedding_app/panels/quality.py."""
 
 import time
 

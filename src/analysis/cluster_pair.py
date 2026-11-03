@@ -1,5 +1,5 @@
 """Comparison of two clusters of the same clustering run (08-10-26, on request) - feeds the
-"Dentro lo stesso clustering" mode of the "Confronto" section in src/analysis/embedding_app.py.
+"Dentro lo stesso clustering" mode of the "Confronto" section in src/analysis/embedding_app/panels/cluster_pair.py.
 
 Four views of "cluster 1 versus cluster 2", all on the subjects of those two clusters only:
 

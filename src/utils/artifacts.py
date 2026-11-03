@@ -155,7 +155,7 @@ def read_run_params(run_dir: Path) -> dict:
     verbatim by that pipeline's own writer - dim_reduction.py's _build_readme_lines and
     clustering.py's _summary_lines both write the identical "Params used: " prefix). Single
     source of truth for "which params did this run actually use" - reused by
-    embedding_app.py's run_params (keyed on a ProductionRun) and
+    embedding_app/runs.py's run_params (keyed on a ProductionRun) and
     clustering.py's viz_embedding_path cross-check (keyed on a plain path, see
     docs/dev/clustering_migration_plan.md §3).
 
@@ -181,7 +181,7 @@ def read_run_config(run_dir: Path) -> dict:
     read_run_params (the "Params used:" line, the underlying model's own hyperparameters only).
     Carries fields "Params used:" never has - e.g. clustering.py's own reduction_method/
     reduction_n_components/reduction_metric (31-08-26), the *upstream embedding's* own
-    hyperparameters, not the clustering model's. Reused by embedding_app.py's picker to narrow
+    hyperparameters, not the clustering model's. Reused by embedding_app/picker.py to narrow
     clustering runs by which embedding they were built from (docs/guides/embedding_app.md).
 
     Raises ValueError if config.md is missing or has no "## Config" fenced json block - every
@@ -203,7 +203,7 @@ def read_dim_reduction_method(run_dir: Path) -> str:
     run_dir's own path: a run_dir isn't guaranteed to sit under a
     <output_root>/production/<method>/ convention (fine-tuning output, or a caller-supplied
     ad-hoc path, might not), so the path segment isn't a safe source of truth here the way
-    embedding_app.py's discover_production_runs can rely on it (there the path shape is
+    embedding_app/runs.py's discover_production_runs can rely on it (there the path shape is
     guaranteed by construction, since it comes from globbing that exact convention).
 
     Raises ValueError if config.md is missing, empty, or its title line doesn't match the

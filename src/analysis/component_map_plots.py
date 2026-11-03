@@ -1,4 +1,4 @@
-"""Plots of the "Mappe delle componenti" panel in src/analysis/embedding_app.py (numbers: src/analysis/component_maps.py)."""
+"""Plots of the "Mappe delle componenti" panel in src/analysis/embedding_app/panels/pca_maps.py (numbers: src/analysis/component_maps.py)."""
 
 from __future__ import annotations
 

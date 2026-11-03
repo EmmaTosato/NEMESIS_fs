@@ -1,4 +1,4 @@
-"""Unit tests for the run selectors (Dato ... Parametri, Run) of src/analysis/embedding_app.py: optional filters
+"""Unit tests for the run selectors (Dato ... Parametri, Run) of src/analysis/embedding_app/picker.py: optional filters
 in a left-to-right cascade."""
 
 import json
