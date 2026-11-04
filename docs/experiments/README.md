@@ -2,18 +2,27 @@
 
 Un file per **sessione**: una coorte, una matrice, e tutto quello che ci è stato fatto sopra, in ordine — dim reduction, clustering, decisioni.
 
+## Sessioni attive
+
 | Sessione | Data | Modalità | Soggetti | Dove è arrivata |
 |---|---|---|---|---|
-| [s1.1-vol](s1.1-vol.md) | 21-07 | Lesione voxel-wise | 1150 | Clustering di produzione, 6 opzioni di k |
-| [s1.2-vol](s1.2-vol.md) | 27-07 | Lesione voxel-wise | 5269 | Clustering di produzione, 6 opzioni di k |
-| [s1.3-vol](s1.3-vol.md) | 06-09 | Lesione voxel-wise | 5720 | Solo matrice, mai usata a valle |
 | [s1.4-vol](s1.4-vol.md) | 07-10 | Lesione voxel-wise | 5845 | Clustering di produzione, 79 run |
-| [s2.1-schaefer-200-tian-s2](s2.1-schaefer-200-tian-s2.md) | 26-08 | SDC parcellata | 1119 | Clustering di tuning, nessuna produzione |
-| [s2.2-vol](s2.2-vol.md) | 07-09 | SDC voxel-wise | 1570 | Clustering di produzione, 8 opzioni di k |
-| [s2.3-stream](s2.3-stream.md) | 30-09 | SDC streamline, 87 tratti | 5838 | Clustering di produzione, 15 run |
 | [s2.4-vol](s2.4-vol.md) | 07-10 | SDC voxel-wise, voxel fuori dal brain non azzerati | 5845 | Clustering di produzione, 30 run |
-| [s2.4-vol](s2.4-vol.md#seconda-tornata-16-10--voxel-fuori-dal-brain-azzerati) | 16-10 | SDC voxel-wise, voxel fuori dal brain azzerati | 5845 | Clustering di produzione, 29 run su 30 (dim reduction e clustering di tuning completi); PCA: tuning con nc42, nc30, nc12 e nc2, 53 run di clustering |
-| [s2.4-stream](s2.4-stream.md) | 07-10 | SDC streamline, 87 tratti | 5831 | Clustering di produzione, 19 run |
+| [s2.4-vol](s2.4-vol.md) | 16-10 | SDC voxel-wise, voxel fuori dal brain azzerati | 5845 | Clustering di produzione, 29 run su 30 (dim reduction e clustering di tuning completi); PCA: tuning con nc42, nc30, nc12 e nc2, 53 run di clustering |
+
+## Sessioni archiviate
+
+I file stanno in [`legacy_exp/`](legacy_exp/), fuori dal percorso di lavoro corrente.
+
+| Sessione | Data | Modalità | Soggetti | Dove è arrivata |
+|---|---|---|---|---|
+| [s1.1-vol](legacy_exp/s1.1-vol.md) | 21-07 | Lesione voxel-wise | 1150 | Clustering di produzione, 6 opzioni di k |
+| [s1.2-vol](legacy_exp/s1.2-vol.md) | 27-07 | Lesione voxel-wise | 5269 | Clustering di produzione, 6 opzioni di k |
+| [s1.3-vol](legacy_exp/s1.3-vol.md) | 06-09 | Lesione voxel-wise | 5720 | Solo matrice, mai usata a valle |
+| s2.1-schaefer-200-tian-s2 | 26-08 | SDC parcellata | 1119 | Clustering di tuning, nessuna produzione (senza file di sessione) |
+| [s2.2-vol](legacy_exp/s2.2-vol.md) | 07-09 | SDC voxel-wise | 1570 | Clustering di produzione, 8 opzioni di k |
+| [s2.3-stream](legacy_exp/s2.3-stream.md) | 30-09 | SDC streamline, 87 tratti | 5838 | Clustering di produzione, 15 run |
+| [s2.4-stream](legacy_exp/s2.4-stream.md) | 07-10 | SDC streamline, 87 tratti | 5831 | Clustering di produzione, 19 run |
 
 La **sessione 3** (FC) non ha un file: non è ancora partita.
 
