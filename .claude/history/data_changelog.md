@@ -10,6 +10,21 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 04-11-26 — Eliminate 4 cartelle di `results/legacy/` (25 GB)
+
+**Cosa è cambiato**: cancellate per scelta dell'utente, senza copia altrove. `results/legacy/` passa da 50 GB a 25 GB (resta `clustering_spectral_kmeans_gmm_adp_28-10-26/`, più una cartella vuota `legacy/`).
+
+| Cartella | Dimensione | Contenuto |
+|---|---|---|
+| `sdc_s2.4-vol_07-10/` | 25 GB | sessione s2.4-vol del 07-10 (matrice vecchia, senza `correct_out_of_brain`): dim reduction UMAP e clustering di agglomerative, HDBSCAN, HDBSCAN soft, ADP, più i `runs*.csv` con le 39 righe spostate il 02-11-26 |
+| `clustering_prodotti_flusso_vecchio_26-10-26/` | 95 MB | prodotti del vecchio flusso di clustering (`old_products*`, `old_interclass`, `old_membership_share`) |
+| `cluster_tuning_notebooks_flusso_vecchio_26-10-26/` | 460 KB | `all_candidates.csv` del 18-10 (lesione e SDC) e 8 file di confronto tra embedding `nc2`/`nc3`/`nc10`; **erano le uniche copie** |
+| `management_cheatsheets_26-10-26/` | 36 KB | `clustering_metrics_report.md` e una copia risalvata (la versione in git resta nella storia) |
+
+**Perché**: spazio. La s2.4-vol del 07-10 è su una matrice superata (la ricostruisce la s2.4-vol del 16-10) e non sarebbe mai stata utilizzata. Le altre tre erano copie di sicurezza che nessun codice legge.
+
+**Conseguenza ancora vera**: le voci di `project_changelog.md` e `data_changelog.md` dal 26-10-26 al 02-11-26 che citano queste cartelle descrivono percorsi che non esistono più. I `runs*.csv` delle 39 righe s2.4-vol spostate il 02-11-26 sono andati con la cartella. `docs/experiments/s2.4-vol.md` non ha link a queste cartelle (verificato con `grep`).
+
 ## 02-11-26 — 39 righe di `runs*.csv` di `results/sdc/` spostate nei log di `results/legacy/sdc_s2.4-vol_07-10/`
 
 **Cosa è cambiato**: le 39 righe `s2.4-vol` dei log di `results/sdc/` con `output` verso cartelle già spostate in `results/legacy/sdc_s2.4-vol_07-10/` (28-10-26) sono state tolte dai log originali e scritte, verbatim e con la stessa intestazione, in un `runs.csv`/`runs_tuning.csv` nello stesso percorso relativo sotto `results/legacy/sdc_s2.4-vol_07-10/` (prima la cartella non aveva nessun log). La colonna `output` delle righe spostate resta il percorso vecchio sotto `results/sdc/`, come nei log dei quattro metodi spostati il 28-10-26.

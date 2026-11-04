@@ -149,9 +149,6 @@ Il giro ha allineato docs, note e notebook alla regola «il markdown di un noteb
 - **Design record «project-clustering-tuning-redesign»**: i docs lo citano, ma il file di memoria non esiste più. Se il design non è scritto nei docs, non è scritto da nessuna parte.
 - **Non archiviati nello storico** (decisioni minori): rimozione dei `summaries/` di `dim_reduction` e `clustering` (commit `567630d`, la ragione è ancora in `docs/dev/models.md`) e `tag_param`/`tag_prefix` come liste parallele (commit `625b2c1`, la storia è nel messaggio del commit).
 
-**Incoerenze note, da decidere**
-- **Link a `results/legacy/`** in `docs/experiments/s2.4-vol.md`: verificato, `results/legacy/sdc_s2.4-vol_07-10/` esiste e i file linkati ci sono (`config.md`, `tuning_results.csv`). Le sole voci non risolvibili sono i pattern con `*` e le cartelle generiche scritti nel testo.
-
 **Dubbi emersi dalla verifica di contenuto (23-10-26)**
 
 *Dati e sessioni*
