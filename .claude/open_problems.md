@@ -1,6 +1,6 @@
 # Problemi aperti e cose da fare — NEMESIS
 
-Ultimo aggiornamento: 30-10-26 (tipo di ictus nel pannello «Cluster description»; lateralità tutta geometrica; guida del pannello «Clustering evaluation» da riscrivere).
+Ultimo aggiornamento: 03-11-26 (sensibilità al seme del tuning UMAP di `s2.4-vol`).
 
 Elenco vivo di ciò che è **aperto adesso**: problemi noti non risolti, decisioni non prese, lavori iniziati e non finiti. Una voce si cancella quando è chiusa — non si tiene lo storico qui.
 
@@ -199,6 +199,12 @@ Il giro ha allineato docs, note e notebook alla regola «il markdown di un noteb
 **Da fare**: (1) aggiungerlo a `KNOWN_VARIABLES` di `enrich_metadata.py` e a `variables` in `config/pipelines/enrich_metadata.json`; promuovere `disease_notes` di UKLFR a valore per soggetto è un giudizio di equivalenza clinica, e se preso va in `VARIABLE_SOURCE_OVERRIDES`; (2) poi una voce `ClusterDescriptionVariable` (`kind="categorical"`) in `CLUSTER_DESCRIPTION_VARIABLES`; (3) rilanciare `tests/unit/test_cluster_description.py` e `tests/unit/test_embedding_app.py`.
 
 **Da decidere**: la copertura sarebbe ~2,9% (168/5853, solo PSP), sotto l'istruzione (14,7%): una sesta sottotrama vuota per il 97% dei cluster vale la sua larghezza? Un valore categorico mancante (es. `sex`) deve avere una barra «unknown» invece di essere escluso da `counts` (interagisce con il percorso dei soggetti non registrati, mancanti per tutte le variabili insieme)? La copertura di istruzione/NIHSS è migliorata abbastanza da chiudere la questione?
+
+### Tuning UMAP di `s2.4-vol`: sensibilità al seme
+
+Il tuning `results/sdc/dim_reduction/tuning/umap/16-10_s2.4-vol` usa solo `random_state=0`: per ogni combinazione c'è una sola estrazione di UMAP. `n_neighbors=15` e `min_dist=0.0` (i valori delle produzioni) sono una scelta ragionevole, non verificata contro un altro seme o un altro ordine dei soggetti (`docs/experiments/s2.4-vol.md`).
+
+**Da fare**: ripetere `n_neighbors` 15 e 30 con `min_dist=0.0`, nc2 e nc10, con 2-3 semi e l'ordine dei soggetti fisso; rifare HDBSCAN con gli stessi `min_cluster_size` (50, 75, 100); confrontare numero di cluster, rumore, presenza di «un blocco più isole» e ARI tra le partizioni.
 
 ## Note
 
