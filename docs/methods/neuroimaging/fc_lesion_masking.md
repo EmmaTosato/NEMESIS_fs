@@ -1,0 +1,163 @@
+# Masking delle feature FC in funzione della lesione — teoria e decisioni di metodo
+
+> Teoria: [Masking delle feature FC in funzione della lesione — teoria e decisioni di metodo](../../../knowledge/concepts/Neuroimaging_Connectivity/fc_lesion_masking.md) (second brain). Questa nota contiene solo la parte specifica di NEMESIS.
+
+> Fonte: Siegel et al. 2016 (*PNAS*), Griffis et al. 2019 (*Neuron*, in `knowledge/`), XCP-D (`xcp_d/interfaces/connectivity.py`). Implementazione: `src/features/functional.py`, `src/pipeline/mask_fc.py`/`build_fc_matrix.py`. Prototipo eseguito su dati reali: `notebooks/pipeline_building/fc_lesion_masking.ipynb`; analisi della coorte e delle soglie: `notebooks/exploration/fc_analysis.ipynb`.
+
+Il documento è in tre parti:
+
+- **[Parte 1 — Teoria](#parte-1--teoria)**: cos'è il dato, come si chiama, qual è il problema, da dove viene il metodo, cos'è l'atlante. *Il perché concettuale.*
+- **[Parte 2 — Decisioni implementative generali](#parte-2--decisioni-implementative-generali)**: le scelte di metodo prese e il loro razionale, il controllo qualità, i percorsi su disco. *Il perché delle scelte tecniche.*
+- **[Parte 3 — Procedura passo per passo](#parte-3--procedura-passo-per-passo)**: cosa succede in sequenza, dallo step 1 (carica la lesione) fino a impilamento e controllo qualità. *Il cosa, in ordine — è questa la parte che il notebook rispecchia cella per cella.*
+
+---
+
+# Parte 2 — Decisioni implementative generali
+
+## Decisioni di metodo prese
+
+1. **Niente funzione di conteggio scritta a mano** — si riusa `nilearn.maskers.NiftiLabelsMasker`, stesso schema a doppio masker di XCP-D (un masker senza maschera conta tutti i voxel, uno con `mask_img` conta i sani, il rapporto è la coverage).
+2. **Le zone compromesse vengono marcate con NaN, non azzerate direttamente** — l'azzeramento (o un'altra strategia) avviene solo più avanti, come passo separato ed esplicito (vicino a `dim_reduction.py`), subito prima di un metodo che non tollera NaN.
+3. **Le matrici mascherate (con NaN) vengono salvate su disco così come sono**, prima di essere vettorizzate — formato ispezionabile a occhio per il controllo di qualità, indipendente da come verranno poi impilate/vettorizzate.
+4. **Due pipeline separate** (`mask_fc.py`/`build_fc_matrix.py`), non una sola: permette di analizzare quanto ogni paziente è compromesso e decidere una soglia di esclusione prima di costruire la matrice finale, senza dover rifare il masking ogni volta. Quali step spettano a quale pipeline è mostrato nella [Parte 3](#parte-3--procedura-passo-per-passo).
+
+## Controllo qualità dopo l'impilamento
+
+Una volta costruita la tabella pazienti × connessioni, si contano i NaN in due direzioni diverse — due domande distinte, non la stessa misura vista due volte:
+
+- **Per paziente** (`fc_matrix.isna().sum(axis=1)`): quante connessioni sono NaN per quel paziente — quanto è compromesso complessivamente. È la base per decidere una soglia di *esclusione paziente* (come leggerla: sezione successiva; analisi in `notebooks/exploration/fc_analysis.ipynb`).
+- **Per connessione** (`fc_matrix.isna().sum(axis=0)`): quante volte, nel campione di pazienti considerato, *quella specifica connessione* (es. `NodoA__NodoB`) risulta NaN. Se una connessione è NaN in troppi pazienti, è un problema di qualità della *feature* (quella colonna ha troppo pochi dati validi per essere utile a valle), non del paziente — domanda diversa da quella sopra.
+
+## Scegliere una soglia di esclusione paziente: come si legge `mask_summary.csv`
+
+`mask_summary.csv` (una riga per paziente, colonna `n_compromised_nodes`) è la materia prima per decidere se escludere i pazienti troppo compromessi. Qui sono le regole di lettura; la decisione presa è in `docs/dev/fc_matrix.md` ("Settled, not open work").
+
+**Nodo = parcella.** Un nodo è una delle zone dell'atlante (239 per `Yan200TianS2Buckner7N`).
+
+### Distribuzione e percentili
+
+Si guarda prima la forma della distribuzione di `n_compromised_nodes` sulla coorte, in valore assoluto e come percentuale della rete.
+
+- Se i pazienti sono sparsi su tutti i valori (distribuzione piatta), qualunque soglia taglia una parte consistente della coorte ed è una scelta delicata.
+- Se invece c'è una massa di pazienti "puliti" e una coda di pochi molto compromessi, una soglia taglia solo la coda, con poco rischio di perdere dati buoni.
+
+Un **percentile** risponde a "sotto quale valore sta il P% dei pazienti?". Letto qui: p90 = *V* significa che il 90% dei pazienti ha al massimo *V* nodi compromessi e solo il 10% ne ha di più. Spostandosi su p95, p99, p100 si entra sempre più nella coda estrema (p100 è il massimo osservato). I percentili servono a capire **quanto in profondità nella coda** si entrerebbe scegliendo una soglia, non a decidere se tagliare una massa di pazienti nella norma.
+
+### Soglie candidate e curva delle esclusioni
+
+Una soglia *T* è la regola "escludi un paziente se ha **più di** *T* nodi compromessi". Si confrontano più *T* candidate in una tabella, dove ogni riga è un'ipotesi da confrontare, non una scelta già fatta:
+
+| Colonna | Significato |
+|---|---|
+| `soglia_nodi` | *T*, in numero di nodi |
+| `soglia_%_rete` | la stessa soglia come percentuale dei nodi totali, `soglia_nodi ÷ n_nodi_totali × 100`. Serve a confrontare soglie su atlanti con un numero diverso di nodi (le 12 combinazioni hanno nodi totali diversi) |
+| `pazienti_esclusi` | quanti pazienti verrebbero tolti dalla matrice con quella soglia |
+| `pazienti_rimasti` | `n_pazienti − pazienti_esclusi` |
+
+La curva "pazienti esclusi in funzione di *T*" è la stessa informazione su tutti i valori possibili:
+
+- **Più si alza la soglia, meno pazienti vengono esclusi**: una soglia alta è più permissiva, tollera pazienti più compromessi.
+- **Il calo non è costante.** Dove la curva scende ripida si sta ancora attraversando la parte densa della distribuzione; dove si appiattisce si è entrati nella coda rara, e alzare ancora la soglia salva pochissimi pazienti.
+
+### Proxy e metrica esatta
+
+- **Proxy**: `n_compromised_nodes`, già in `mask_summary.csv`, disponibile senza costruire la matrice.
+- **Metrica esatta**: la percentuale di connessioni NaN del paziente nella matrice finale (`np.isnan(matrix).mean(axis=1)`), cioè la quota di features che il paziente non ha.
+
+Per capire se contare i nodi basta, si mettono i due valori per paziente in un grafico a dispersione (nodi compromessi in orizzontale, % NaN in verticale) e si uniscono per `subject_id`, mai per posizione. Una relazione stretta dice che il proxy è sufficiente; i pazienti che se ne discostano hanno NaN che i soli nodi compromessi non spiegano e vanno guardati direttamente. Il confronto richiede che `mask_summary.csv` e la matrice vengano dalla **stessa** run di `mask_fc.py`.
+
+### Classifica dei candidati all'esclusione
+
+Ordinando i pazienti dal più al meno compromesso e guardando i primi 10, con accanto la % NaN reale, si ottiene la lista dei **candidati più forti all'esclusione**: i pazienti che qualunque soglia ragionevole taglierebbe per primi. È un modo di vedere chi sono, non una regola di esclusione.
+
+## Riferimento rapido — pipeline reale
+
+- `data/derived/features/masked_fc/<combo>/` — matrici mascherate per singolo paziente (CSV con NaN) + `mask_summary.csv` (quanti nodi compromessi per paziente).
+- `data/derived/features/fc_matrix/<combo>/<data>_<session>/` — matrice 2D finale (pazienti × connessioni), impilata e vettorizzata, ancora con i NaN dentro.
+- Guida utente: `docs/guides/fc_matrix_building.md`. Architettura: `docs/dev/fc_matrix.md`.
+
+---
+
+# Parte 3 — Procedura passo per passo
+
+La procedura completa, in ordine di esecuzione, dall'inizio fino alla matrice finale con controllo qualità. Ogni step è illustrato sull'atlante giocattolo a 4 zone (A, B, C, D) della [sezione 1](#1-cosè-una-matrice-di-connettività-funzionale-fc).
+
+Si divide in tre blocchi, che corrispondono a tre momenti diversi:
+
+- **Setup** — una sola volta all'avvio.
+- **Step 1-8 — per ogni paziente, uno alla volta** → li fa `mask_fc.py`.
+- **Step 9-12 — tutti i pazienti insieme, dopo che ognuno ha finito gli step 1-8** → li fa `build_fc_matrix.py`.
+
+## Setup — Carica l'atlante
+
+Carica la mappa cerebrale (immagine con i numeri-zona + tabella che li traduce in nomi, [sezione 5](#5-latlante-mappa-cerebrale)). Una sola volta, non per paziente: è sempre la stessa mappa, cambia solo la lesione da confrontarci. Da qui si ricava l'elenco ordinato dei nomi delle zone (`node_names`), riusato da tutti gli step successivi.
+
+## Step 1-8 — per ogni paziente (`mask_fc.py`)
+
+Questi 8 step si ripetono identici per **ogni** paziente, uno alla volta. Sotto, un paziente giocattolo con lesione all'80% sulla zona C e al 30% sulla zona D.
+
+1. **Carica la lesione** del paziente — l'immagine 3D che dice, voxel per voxel, dove c'è danno.
+2. **Riallinea la lesione alla griglia dell'atlante** (`resample_to_img`, nearest neighbor). Lesione e atlante sono due file creati separatamente: anche a parità di dimensioni, l'orientamento spaziale reale va sempre verificato e corretto, mai assunto identico.
+3. **Calcola la coverage** (percentuale di zona sana), per ciascuna delle 4 zone. Ogni zona è un insieme di voxel (piccoli cubetti 3D, es. 2mm×2mm×2mm) — la zona C, per dire, è fatta di 50 voxel in tutto. Sovrapponendo lesione e atlante si conta quanti di quei 50 voxel *non* sono dentro la lesione: se sono 10, la coverage è 10/50 = **20%**. Risultato per le 4 zone: A=100%, B=100%, C=20%, D=70%.
+4. **Decide quali zone sono compromesse** — coverage sotto la soglia del 50% ([sezione 4](#4-da-dove-viene-il-metodo-letteratura)). Nel nostro esempio: solo **C** (20% < 50%; D con 70% resta valida).
+5. **Carica la matrice di connettività** del paziente (tabella 4×4) e verifica che i nomi delle zone combacino con l'atlante — se l'ordine non corrisponde, ci si ferma con un errore, mai si maschera "per posizione".
+6. **Marca con NaN** tutta la riga e tutta la colonna delle zone compromesse. Qui: riga C e colonna C → NaN. A, B, D restano intatte. (NaN e non zero: il valore concreto si decide solo a valle, decisione 2 della [Parte 2](#decisioni-di-metodo-prese).)
+7. **Salva su disco** questa matrice 4×4 mascherata, così com'è — è l'**unico output su disco** di questo blocco (un CSV per paziente, in `masked_fc/<combo>/`).
+8. **Vettorizza**: appiattisce la matrice mascherata nelle 6 connessioni uniche del triangolo superiore (`A__B`, `A__C`, `A__D`, `B__C`, `B__D`, `C__D`), di cui 3 ora NaN (quelle che coinvolgono C). Il risultato è un **vettore in memoria** per questo paziente — *non* viene salvato da solo su disco: resta lì in attesa dell'impilamento (step 10).
+
+Il vettore del nostro paziente giocattolo (**paziente 1**), dopo lo step 8:
+
+| A__B | A__C | A__D | B__C | B__D | C__D |
+| ---- | ---- | ---- | ---- | ---- | ---- |
+| 0.62 | NaN  | 0.35 | NaN  | 0.20 | NaN  |
+
+## Step 9-12 — tutti i pazienti insieme (`build_fc_matrix.py`)
+
+Questi step partono **solo dopo** che *ogni* paziente ha completato gli step 1-8 e ha prodotto il suo vettore. Non ha senso impilare o fare controllo qualità su un paziente solo — servono tutti insieme.
+
+Per mostrarli con numeri concreti serve più di un paziente: aggiungiamo un **paziente 2**, con lesione sulla zona **A** (A compromessa, le altre sane). Il suo vettore dopo lo step 8:
+
+| A__B | A__C | A__D | B__C | B__D | C__D |
+| ---- | ---- | ---- | ---- | ---- | ---- |
+| NaN  | NaN  | NaN  | 0.05 | 0.20 | 0.40 |
+
+9. **Verifica l'allineamento delle etichette** tra pazienti: tutti devono avere le stesse identiche connessioni, nello stesso ordine. Se un paziente ha etichette diverse, ci si ferma con un errore — mai si impila "per posizione".
+10. **Impila**: mette il vettore di ogni paziente come una riga di un'unica tabella pazienti × connessioni.
+
+    |            | A__B | A__C | A__D | B__C | B__D | C__D |
+    | ---------- | ---- | ---- | ---- | ---- | ---- | ---- |
+    | paziente 1 | 0.62 | NaN  | 0.35 | NaN  | 0.20 | NaN  |
+    | paziente 2 | NaN  | NaN  | NaN  | 0.05 | 0.20 | 0.40 |
+
+11. **Controllo qualità** — conta i NaN nelle due direzioni ([Parte 2](#controllo-qualità-dopo-limpilamento) per il significato di ciascuna):
+    - **per paziente** (per riga): paziente 1 → 3 NaN, paziente 2 → 3 NaN;
+    - **per connessione** (per colonna): `A__C` è NaN in **entrambi** (2/2, un endpoint compromesso in ciascuno), `B__D` non è mai NaN (0/2, B e D sane in tutti), le altre 1/2.
+12. **Salva la matrice impilata** su disco (in `fc_matrix/<combo>/<data>_<session>/`), ancora con i NaN dentro — è l'output finale di questa pipeline.
+
+**E l'imputazione (NaN → valore concreto)?** Non fa parte di questa procedura. È un passo separato e successivo, da fare solo subito prima di un metodo che non tollera NaN (PCA/UMAP), vicino a `dim_reduction.py` (decisione 2 della [Parte 2](#decisioni-di-metodo-prese)). La matrice salvata allo step 12 resta volutamente con i NaN.
+
+## Righe tolte dalla nota teorica (parti di progetto e rimandi a file)
+
+- **Griffis et al. 2019** — versione più precisa, ma con un criterio **diverso dal nostro**: i vertici dentro la lesione vengono mascherati **prima** di stimare la FC (parcellazione di superficie Gordon333), e una regione è esclusa (NaN) se ne restano **meno di 60 vertici**. È un conteggio assoluto, non una percentuale del territorio: il paper non cita nessuna soglia del 50%. Per l'analisi PLSC gli archi esclusi sono poi messi a 0: *"Because the PLSC approach cannot accommodate missing values, functional connectivity between parcels that had been excluded ... was set to 0"* — il valore mancante viene marcato come tale (NaN) e sostituito con un valore concreto **solo nel momento in cui serve** a uno strumento che non tollera dati mancanti, non prima. Gli autori stessi segnalano che gli zeri possono introdurre una covarianza sistematica con la lesione (bias verso una somiglianza topografica artificiale); come controllo ripetono PLSC e similarità sui soli 51 pazienti senza regioni rimosse, con risultati simili.
+
+- **XCP-D** (`xcp_d/interfaces/connectivity.py`, classe `NiftiParcellate`) — il software che ha generato le matrici FC reali usa già un meccanismo identico (`min_coverage`, soglia di default 0.5), per un problema diverso (copertura BOLD). Si riusa lo stesso meccanismo con la lesione al posto del problema originale. La soglia del 50% di sovrapposizione è quella di Siegel et al. 2018 (sopra, verificata nel testo) ed è indicata come standard per le lesioni anche dal Lesion Quantification Toolkit (Griffis et al. 2021), che non è tra i paper di `knowledge/papers/` e non è verificato da questo repo.
+
+- **Differenza di metodo rispetto a Griffis 2019**: loro escludono i vertici lesionati dalla stima della FC; noi mascheriamo dopo, sulla FC già calcolata da XCP-D con la lesione dentro.
+
+`min_coverage` non è un valore hardcoded nel codice — è un campo obbligatorio di `config/pipelines/mask_fc.json` (oggi `0.5`), validato in `[0.0, 1.0]` da `src/analysis/build_config.py` (`_require_float_in_range`) e **senza default implicito**: se il campo manca, il caricamento del config solleva `ValueError`, mai un valore silenzioso (coerente con `code_standards.md` §0). Senza una soglia il concetto di "nodo compromesso" non è definibile — resta solo la coverage, un numero continuo tra 0 e 1.
+
+La decisione booleana vive in `src/features/functional.py`, `find_compromised_nodes` — confronto stretto, non `<=`:
+
+```python
+return node_names[parcel_coverage < min_coverage]
+```
+
+- **`min_coverage = 1.0`**: qualunque nodo con anche un solo voxel dentro la lesione (coverage < 100%) verrebbe marcato compromesso. Con lesion mask reali (rumore di segmentazione, resampling) questo marca compromessi molti più nodi per paziente rispetto a `0.5` — sui dati reali WashU, con soglia `0.5` la mediana è 1 nodo compromesso su 169 pazienti (media 3.9, atlante `Yan200TianS2Buckner7N`, vedi `notebooks/exploration/fc_analysis.ipynb`); una soglia `1.0` sposterebbe questa distribuzione molto più in alto, senza un guadagno scientifico corrispondente.
+
+`0.5` non è un numero scelto ad hoc in questo progetto: è il default di `min_coverage` di XCP-D per il proprio problema di copertura BOLD, ed è la soglia di sovrapposizione di Siegel et al. 2018 (parcel con più del 50% di sovrapposizione con la lesione esclusi), che il Lesion Quantification Toolkit (Griffis et al. 2021, non verificato da questo repo) indica come standard per le lesioni. Non è la soglia di Griffis et al. 2019, che usa un conteggio assoluto (meno di 60 vertici rimasti). Per verificarne la sensibilità sui dati reali, l'approccio corretto è uno sweep esplicito (rilanciare `mask_fc.py` con `min_coverage` a es. 0.3/0.5/0.7 e confrontare le distribuzioni di `mask_summary.csv`), non la sua rimozione.
+
+Contenuto (già pronto sul server EBRAIN, cartella `Atlases/fmriprep/atlas-<combo>/`, copiata in locale in `assets/atlases/fmriprep/`):
+
+Si usa direttamente la versione a **2mm** di risoluzione (`res-2`) perché è già alla stessa risoluzione della lesion mask WashU — evita un passaggio di ricampionamento in più. 12 combinazioni di atlante sono disponibili (`Yan{100,200,300,400}TianS{1,2,3}Buckner7N`) — tutte e 12 sono state effettivamente girate sui dati reali, sia il masking (`data/derived/features/masked_fc/`, 169 pazienti mascherati per ciascuna) sia la matrice finale (`data/derived/features/fc_matrix/`, una per combo); `Yan200TianS2Buckner7N` è stata la prima validata (24/07), le altre 11 seguite il 27/07.
+
+Il concetto chiave che l'atlante rende possibile calcolare è la **coverage**: la percentuale di voxel sani di una zona, ottenuta sovrapponendo lesione e atlante. È il numero su cui si decide se una zona è compromessa; il calcolo concreto è lo [step 3 della procedura](#step-1-8--per-ogni-paziente-mask_fcpy).
