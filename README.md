@@ -57,7 +57,7 @@ knowledge/        # notes/ = our own syntheses; papers/ = extracted reference li
 data/             # local copy of raw + derived data (gitignored, not in repo)
 results/          # gitignored, not in repo
 ├── lesion/, sdc/  # dim_reduction and clustering outputs, one folder per modality
-├── tables/        # dataset summary tables (scripts/build_dataset_summary_table.py)
+├── tables/        # dataset summary tables (scripts/build_dataset_summary_table.py), clustering tuning summary tables (scripts/build_tuning_summary_tables.py)
 ├── cache/         # recomputable caches (Embedding Explorer, PCA notebook): safe to delete
 └── legacy/        # products of old flows, read by no code
 summaries/, logs/  # per-run outputs of the pipelines (versioned in git)
