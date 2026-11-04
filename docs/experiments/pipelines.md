@@ -146,7 +146,7 @@ flowchart LR
 
 ## s2.4-vol del 07-10 — storico
 
-Matrice **vecchia**, senza `correct_out_of_brain`: 291345 colonne, 64110 delle quali fuori dalla maschera cerebrale. La ricostruisce la s2.4-vol del 16-10 (sopra). I risultati stanno in `results/legacy/sdc_s2.4-vol_07-10/`.
+Matrice **vecchia**, senza `correct_out_of_brain`: 291345 colonne, 64110 delle quali fuori dalla maschera cerebrale. La ricostruisce la s2.4-vol del 16-10 (sopra). I risultati non sono conservati: la sessione è stata eliminata per ragioni di spazio e non sarebbe stata utilizzata.
 
 ```mermaid
 flowchart LR

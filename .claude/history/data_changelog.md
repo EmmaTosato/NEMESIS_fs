@@ -10,6 +10,22 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 04-11-26 — Eliminate 11 cartelle e 3 file di `tmp/` (593 MB)
+
+**Cosa è cambiato**: cancellate per scelta dell'utente, senza copia altrove (`tmp/` è gitignored). `tmp/` passa da 858 MB a 265 MB; restano `fc_nan_analysis/` (lavoro in corso) e `s2.4_raw_clustering/` (262 MB).
+
+| Voce | Dimensione | Contenuto |
+|---|---|---|
+| `s2.4_pca42_clustering/` | 526 MB | prototipo di clustering su score PCA a 42 componenti (16-10) |
+| `s2.4_umap_nc50_tuning/` | 34 MB | tuning UMAP a 50 componenti (18-10) |
+| `anatomy_rendering/` | 23 MB | 83 file di prototipi del rendering anatomico (29-09) |
+| `hdbscan_old_flow_19-10-26/`, `cluster_tuning_notebooks_backup_19-10-26/`, `report_samples_19-10-26/`, `cluster_tuning_residual_tables_19-10-26/`, `cluster_reports_commented_19-10-26/`, `summary_md_19-10-26/` | 8,5 MB | backup e campioni del vecchio flusso di clustering (19-10). `cluster_tuning_notebooks_backup_19-10-26/` era l'**unico posto** con i generatori dei vecchi notebook e `plot_labels_on_2d` |
+| `hdbscan_condensed_tree/` | 428 KB | script di analisi dell'albero condensato di HDBSCAN (21-10) |
+| `verifica_contenuto_21_10_26/` | 228 KB | brief, prompt, stato e rapporti della verifica di contenuto |
+| `pca_variance_table.{pdf,png,tex}` | 56 KB | tabella della varianza PCA |
+
+**Conseguenza ancora vera**: restano riferimenti a questi percorsi in `src/analysis/embedding_app/anatomy.py` (quattro commenti citano le immagini di confronto di `tmp/anatomy_rendering/`), in `.claude/audit/` e nelle voci precedenti dei changelog (`project_changelog.md` 19-10-26 cita il backup dei notebook e `SUMMARY.md`; `methods_changelog.md` i report commentati).
+
 ## 04-11-26 — Eliminate 4 cartelle di `results/legacy/` (25 GB)
 
 **Cosa è cambiato**: cancellate per scelta dell'utente, senza copia altrove. `results/legacy/` passa da 50 GB a 25 GB (resta `clustering_spectral_kmeans_gmm_adp_28-10-26/`, più una cartella vuota `legacy/`).
