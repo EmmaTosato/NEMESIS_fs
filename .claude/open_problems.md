@@ -1,6 +1,6 @@
 # Problemi aperti e cose da fare — NEMESIS
 
-Ultimo aggiornamento: 03-11-26 (sensibilità al seme del tuning UMAP di `s2.4-vol`).
+Ultimo aggiornamento: 04-11-26 (run vuote e run non lanciate nella produzione del clustering di `s2.4-vol`).
 
 Elenco vivo di ciò che è **aperto adesso**: problemi noti non risolti, decisioni non prese, lavori iniziati e non finiti. Una voce si cancella quando è chiusa — non si tiene lo storico qui.
 
@@ -202,6 +202,13 @@ Il giro ha allineato docs, note e notebook alla regola «il markdown di un noteb
 Il tuning `results/sdc/dim_reduction/tuning/umap/16-10_s2.4-vol` usa solo `random_state=0`: per ogni combinazione c'è una sola estrazione di UMAP. `n_neighbors=15` e `min_dist=0.0` (i valori delle produzioni) sono una scelta ragionevole, non verificata contro un altro seme o un altro ordine dei soggetti (`docs/experiments/s2.4-vol.md`).
 
 **Da fare**: ripetere `n_neighbors` 15 e 30 con `min_dist=0.0`, nc2 e nc10, con 2-3 semi e l'ordine dei soggetti fisso; rifare HDBSCAN con gli stessi `min_cluster_size` (50, 75, 100); confrontare numero di cluster, rumore, presenza di «un blocco più isole» e ARI tra le partizioni.
+
+### Produzione del clustering di `s2.4-vol`: run vuote e run non lanciate
+
+- **31 run vuote**: le produzioni PCA di `hdbscan` e `hdbscan_soft` a nc12, nc30, nc42 con i parametri ripresi dalla produzione UMAP (`min_cluster_size` 50-100) trovano 0 cluster (15 di 20 per `hdbscan`, 16 di 20 per `hdbscan_soft`, contando anche nc2 con 100/20 eom). Sono ancora in `results/sdc/clustering/production/hdbscan{,_soft}/pca/19-10_*`. **Da decidere**: tenerle o cancellarle. Il tuning PCA non ha nessuna combinazione con rumore ≤10% (`docs/experiments/s2.4-vol.md`).
+- **Varimax non lanciato**: l'agglomerativo euclidean `ward`/`average`, k 2-9, su nc2 e nc12 varimax (29 run) non è stato prodotto; `nc12_varimax` non ha alcuna produzione di clustering, anche se il tuning esiste.
+- **UMAP nc3**: ha il tuning del clustering, ma nessuna produzione.
+- **`pca_evaluation.ipynb`**: la cella 12 della sezione 3 ripete il codice della cella 11 con `N_SHOWN = 150` invece di 50, senza una cella markdown che la introduca; da togliere o da spiegare.
 
 ## Note
 

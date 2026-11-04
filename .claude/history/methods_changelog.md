@@ -8,6 +8,26 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 04-11-26 — Clustering di `s2.4-vol`: quali run di produzione si considerano, e HDBSCAN lasciato
+
+**Cosa è stato deciso** (scelta dell'utente, sui tuning del 16-10 → 19-10 e sulle produzioni):
+
+- **Agglomerativo**: si considerano euclidean con `ward` e `average`. Su UMAP nc2 e nc10, k da 2 a 15; sulla PCA nc2, nc12, nc30 e nc42, k da 2 a 9. Le altre run in produzione (coseno, `complete`, k più alti) restano nelle cartelle ma non si considerano.
+- **HDBSCAN e HDBSCAN soft**: non si prosegue, né su UMAP né su PCA.
+- Lanciate il 04-11-26 le run di produzione PCA che mancavano: 58 di agglomerativo (euclidean `ward`/`average`, k 2-9, nc2/12/30/42) e 6 di HDBSCAN (3 normale, 3 soft eom: la migliore per silhouette del tuning di nc12, nc30, nc42).
+
+**Perché**:
+
+- **Euclidean**: è la metrica con cui l'UMAP è costruito; su un embedding UMAP gli assi sono arbitrari (manhattan dipende dagli assi, quindi potrebbe cambiare ruotando l'embedding) e l'origine non ha un significato (cosine). È l'unica per cui `ward`, Calinski-Harabasz, Davies-Bouldin e Dunn esistono, e nessun indice dei report confronta le metriche tra loro. Sulla PCA le prime due componenti (51,0% della varianza) sono in gran parte lato e volume.
+- **`single` escluso**: cofenetica 0,16-0,17 su UMAP, silhouette negativa in 27-29 k su 29, a k=2 il 97-98% dei soggetti in un cluster.
+- **HDBSCAN lasciato**: nel tuning nessuna combinazione ha insieme rumore ≤10% e cluster più grande ≤50% (su UMAP il rumore minimo con il cluster più grande ≤50% è 15,1-18,9%; con rumore ≤10% il cluster più grande tiene l'83,5-83,7%). Su PCA nessuna combinazione ha rumore ≤10%.
+
+**Alternative scartate**: scegliere k dalla silhouette (nell'euclidea sta tra 0,37 e 0,50 per ogni k su UMAP e il migliore cambia con `n_components`); tenere il coseno come metrica principale (silhouette 0,48-0,83, non confrontabile con le altre).
+
+**Conseguenza ancora vera oggi**: le produzioni PCA di `hdbscan` e `hdbscan_soft` a nc12, nc30, nc42 con i parametri ripresi dalla produzione UMAP (15 + 16 run) hanno 0 cluster; le 6 del 04-11 sono pochi cluster con un blocco al 67-79% e rumore 20-32%. Dettaglio e numeri: `docs/experiments/s2.4-vol.md`.
+
+---
+
 ## 30-10-26 — PNG statici degli embedding: trasparenza, declutter e scala log del volume (decisioni di fine agosto-inizio settembre, registrate dopo averle tolte da `docs/dev/plotting.md`)
 
 **Cosa è stato adottato**: nei PNG statici (`plot_embedding_2d`/`categorical`/`continuous`) marker di dimensione 6 e alpha 0,9; `_declutter_points` sposta i punti che si sovrapporrebbero sullo schermo, al più di 1 diametro del marker, con la distanza misurata in pixel dello schermo. Il volume lesionale è colorato su scala log (`log_scale`); NIHSS resta lineare, con la stessa palette (`viridis`).

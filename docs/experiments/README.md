@@ -8,7 +8,7 @@ Un file per **sessione**: una coorte, una matrice, e tutto quello che ci è stat
 |---|---|---|---|---|
 | [s1.4-vol](s1.4-vol.md) | 07-10 | Lesione voxel-wise | 5845 | Clustering di produzione, 79 run |
 | [s2.4-vol](s2.4-vol.md) | 07-10 | SDC voxel-wise, voxel fuori dal brain non azzerati | 5845 | Clustering di produzione, 30 run |
-| [s2.4-vol](s2.4-vol.md) | 16-10 | SDC voxel-wise, voxel fuori dal brain azzerati | 5845 | Clustering di produzione, 29 run su 30 (dim reduction e clustering di tuning completi); PCA: tuning con nc42, nc30, nc12 e nc2, 53 run di clustering |
+| [s2.4-vol](s2.4-vol.md) | 16-10 | SDC voxel-wise, voxel fuori dal brain azzerati | 5845 | Clustering di produzione, UMAP 106 run e PCA 117 run (dim reduction e clustering di tuning completi) |
 
 ## Sessioni archiviate
 
