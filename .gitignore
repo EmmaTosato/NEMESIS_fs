@@ -16,3 +16,5 @@ sdc_download/
 tmp_sdc/
 
 tmp/
+
+logs/embedding_app_local.log
