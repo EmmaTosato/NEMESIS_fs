@@ -503,7 +503,7 @@ Conseguenza ancora vera: il notebook non ha nessuna misura di stabilità né un 
 **Conseguenza ancora vera**:
 - ADP Z=3.0 e Z=3.5 sono la stessa partizione (7 cluster, ARI ~1): la seconda è un duplicato, tenuto per simmetria con s1.4.
 - Z=4.0 (5 cluster) e Z=5.0 (3 cluster) sono "buoni" nel tuning ma non sono stati prodotti: l'intervallo scelto è 7-20 cluster.
-- Una run ADP su SDC dura circa 48 minuti e copia 6.3 GB: `production/adp` pesava 25 GB (dal 28-10-26 sta in `results/legacy/sdc_s2.4-vol_07-10/clustering/production/adp`). Ogni Z ricalcola le distanze dice, anche se cambia solo il taglio.
+- Una run ADP su SDC dura circa 48 minuti e copia 6.3 GB: `production/adp` pesava 25 GB (dal 28-10-26 sta in `results/legacy/sdc_s2.4-vol_07-10/clustering/production/adp`). Non esiste più: la cartella è stata eliminata il 04-11-26 e le produzioni ADP rimaste in `results/legacy/` il 05-11-26 (`data_changelog.md`). Ogni Z ricalcola le distanze dice, anche se cambia solo il taglio.
 
 ---
 

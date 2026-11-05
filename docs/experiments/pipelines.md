@@ -2,6 +2,8 @@
 
 Vista d'insieme delle tornate di esperimenti: dalla matrice di partenza al clustering di produzione. Il dettaglio di ogni sessione sta nel suo file, elencato nel [README](README.md).
 
+Le run di produzione `ADP` dei diagrammi non esistono più (cancellate il 05-11-26 per spazio); restano i tuning. Si rifanno dalle matrici: `.claude/history/data_changelog.md`, voce del 05-11-26.
+
 ## Seconda tornata — s1.4, s2.4
 
 Una matrice per schema. Ogni matrice parte una volta sola e si dirama dove le pipeline divergono.

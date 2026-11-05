@@ -10,6 +10,23 @@ Voci in ordine cronologico inverso.
 
 ---
 
+## 05-11-26 — Eliminate le run di produzione di ADP da `results/legacy/` (25 GB)
+
+**Cosa è cambiato**: cancellate per scelta dell'utente, senza copia altrove: `results/legacy/clustering_spectral_kmeans_gmm_adp_28-10-26/{lesion,sdc}/clustering/production/adp/`. `results/` passa da 27 GB a 2,5 GB, `results/legacy/` da 25 GB a 73 MB (restano i tuning di `adp` e le produzioni di `kmeans`, `gmm`, `spectral`).
+
+| Cartella | Dimensione | Run (tutte `dice`, `maxk=100`, sulla matrice grezza) |
+|---|---|---|
+| `lesion/.../adp/` | 4,8 GB | 4 su `lesion_matrix/07-10_s1.4-vol` (12-10), Z = 2,5, 3,0, 3,5, 4,0; Z=3,0 dà 15 cluster |
+| `sdc/.../adp/` | 20 GB | 4 su `sdc_matrix/16-10_s2.4-vol` (16-10), Z = 2,0, 2,5, 3,0, 3,5; Z=3,0 dà 9 cluster. 6 su `sdc_matrix/07-10_s2.4-stream` (14-10), Z = 2,5, 3,0, 3,5, 4,0, 5,0, 6,0; 19, 16, 14, 12, 9, 7 cluster |
+
+Ogni cartella di run aveva `matrix.npy`, `metadata.csv` (le etichette), `cluster_plot.png`, `silhouette_plot.png`, `config.md`, `manifest.json`; in più `runs.csv` per metodo. Perse con le cartelle: etichette, grafici e le righe di `runs.csv`.
+
+**Perché**: spazio. `matrix.npy` non era un risultato ma una **copia della matrice di input** (`float32`, 5845 × 227235 per `s2.4-vol`: 4,9 GB; 5845 × 221955 per `s1.4-vol`: 1,2 GB), riscritta a ogni run. Le etichette erano circa 220 KB per run.
+
+**Come si rifanno**: gli input stanno ancora in `data/derived/` (cartelle `input_path` sopra, verificate con `ls`). Il codice è `src/analysis/adp.py`, voce `adp` di `params_clustering.json`; si lancia dall'ambiente `nemesis_fallback` (l'unico con `dadapy`) con una copia di `clustering.json` che contiene solo `adp`: `python -m src.pipeline.clustering --config <copia>` (`docs/guides/clustering.md`, sezione «ADP (DADApy)»). Costo: circa 48 minuti per run su SDC voxelwise (misurato sulla matrice del 07-10, non su quella del 16-10) e 4,9 GB per run.
+
+**Conseguenza ancora vera**: i link a `config.md` e `runs.csv` di queste run, e le righe «ADP … (N run)» di `docs/experiments/pipelines.md`, descrivono run che non ci sono più. Le 4 run ADP di `s2.4-vol` 07-10 (12-10) erano già state eliminate il 04-11-26 con `sdc_s2.4-vol_07-10/`.
+
 ## 04-11-26 — Eliminate 11 cartelle e 3 file di `tmp/` (593 MB)
 
 **Cosa è cambiato**: cancellate per scelta dell'utente, senza copia altrove (`tmp/` è gitignored). `tmp/` passa da 858 MB a 265 MB; restano `fc_nan_analysis/` (lavoro in corso) e `s2.4_raw_clustering/` (262 MB).
