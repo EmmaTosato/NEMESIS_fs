@@ -149,7 +149,7 @@ $$
 | Stabilità di un cluster HDBSCAN | quanto a lungo, al variare della densità, il cluster esiste come tale | Campello et al. 2013 [8] | `cluster_persistence_` → `persistence_mean` (solo `hdbscan_soft`) |
 | Plateau di un parametro | la partizione cambia se il parametro cambia di poco? | scelta del progetto | `ari_vs_prev_z` (ADP) |
 | Accordo tra varianti | linkage o embedding diversi danno la stessa partizione? | ARI, Hubert & Arabie 1985 [9] | `linkage_agreement.csv`; il confronto tra embedding non è nel report |
-| Stabilità al ricampionamento | i cluster si ritrovano su sottocampioni o dati perturbati? | Hennig 2007 [10]; Monti et al. 2003 [13] | non implementata per agglomerativo, HDBSCAN e ADP |
+| Stabilità al ricampionamento | i cluster si ritrovano su sottocampioni o dati perturbati? | Hennig 2007 [10]; Monti et al. 2003 [13] | agglomerativo su UMAP: notebook `clustering_validation` (ARI e Jaccard per gruppo, 50 sottocampioni all'80%); non implementata per HDBSCAN e ADP |
 
 **Stabilità di un cluster in HDBSCAN** [8]. Con $\lambda = 1/\varepsilon$ (l'inverso della distanza di taglio), un cluster $C$ nasce a $\lambda_{\min}(C)$ e ogni suo punto $x$ ne esce a $\lambda_{\max}(x, C)$:
 
@@ -160,6 +160,13 @@ $$
 È il criterio con cui HDBSCAN sceglie i cluster (vedi [`hdbscan.md`](hdbscan.md), §2), non un indice esterno: un cluster stabile è uno che persiste su un ampio intervallo di densità. Il pacchetto `hdbscan` la normalizza in [0, 1] in `cluster_persistence_`, dividendo per la taglia del cluster e per il $\lambda$ massimo dell'albero (codice di `hdbscan` 0.8.44, `_hdbscan_tree.pyx::get_stability_scores`).
 
 **Ricampionamento.** Hennig (2007) misura la stabilità di ogni cluster come la similarità di Jaccard media con il cluster più simile ottenuto su campioni bootstrap [10]. Monti et al. (2003) costruiscono una matrice di consenso su sottocampioni, e la applicano anche al clustering gerarchico [13]. Nel progetto queste diagnostiche esistono solo per kmeans, gmm e spectral (`CONSENSUS_ELIGIBLE_METHODS`): è una scelta del progetto, non un limite dei metodi deterministici (vedi [`clustering_literature_survey.md`](../clustering_literature_survey.md), §4).
+
+**Sottocampionamento nel notebook `clustering_validation`.** Si estrae una frazione dei soggetti **senza reinserimento**: con il reinserimento solo il 62% dei soggetti estratti è distinto, e le copie a distanza 0 falsano i metodi basati sui vicini (HDBSCAN). Si rifanno embedding e clustering sul sottocampione e si confronta con il clustering completo ristretto agli stessi soggetti, con due misure:
+
+- **ARI** [9]: accordo tra le due partizioni sulle coppie di soggetti, corretto per il caso (1 = identiche, circa 0 = casuale). Dipende da $k$: non ordina i $k$.
+- **Jaccard per gruppo** [10]: per un gruppo $A$ del clustering completo, $\max_B |A \cap B| / |A \cup B|$ sui gruppi $B$ della ripetizione.
+
+Con UMAP l'embedding va **ricalcolato** a ogni ripetizione: tenere le coordinate fisse è ottimistico, perché la posizione di ogni soggetto dipende dai suoi vicini, compresi quelli tolti. Il notebook riporta entrambe le versioni affiancate. UMAP ha `random_state` fisso, quindi la variabilità viene solo dai soggetti estratti.
 
 **RSC e Monti nel progetto** (blocco opzionale `"consensus"` di `params_clustering.json`, `src/analysis/consensus_clustering.py`). Entrambi ripetono il metodo e costruiscono una matrice di co-occorrenza $C$, dove $C_{ij}$ è la quota di ripetizioni in cui $i$ e $j$ finiscono nello stesso cluster. Non producono etichette: dicono quanto è riproducibile un $k$ scelto per kmeans, gmm o spectral.
 

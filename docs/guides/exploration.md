@@ -175,15 +175,15 @@ Fissa i parametri di `nested_params` del registry (`metric` per t-SNE; `metric` 
 
 ## `notebooks/post-results_analysis/`
 
-Leggono run già **prodotte**: di clustering (un notebook di confronto tra più run, più l'esplorazione di un tuning) e di PCA (`pca_evaluation`). Per il clustering un criterio separa le analisi: se usano dati *interni* al clustering o dati *esterni* a esso.
+Leggono run già **prodotte**: di clustering (la stabilità al ricampionamento, `clustering_validation`, più l'esplorazione di un tuning) e di PCA (`pca_evaluation`). Per il clustering un criterio separa le analisi: se usano dati *interni* al clustering o dati *esterni* a esso.
 
 - **Empirica**: usa solo le etichette e lo spazio su cui la run è stata costruita (embedding o matrice). Risponde a "com'è fatta e quanto è affidabile questa partizione, quanto si accorda con un'altra".
-- **Interpretativa**: porta variabili o immagini che il clustering non ha visto (cliniche, demografiche, mappe anatomiche). Risponde a "cosa rappresentano questi cluster". Vive nell'app Dash (mappe, soggetti rappresentativi, composizione dei cluster); nei notebook le parti interpretative sono `dendrogram_embedding_explorer`, che mostra le mappe anatomiche dei due cluster nati da ogni divisione dell'albero, e le parti 2 (profilo clinico/demografico) e 4 (due cluster della stessa run) di `clustering_comparison`.
+- **Interpretativa**: porta variabili o immagini che il clustering non ha visto (cliniche, demografiche, mappe anatomiche). Risponde a "cosa rappresentano questi cluster". Vive nell'app Dash (mappe, soggetti rappresentativi, composizione dei cluster); nei notebook la parte interpretativa è `dendrogram_embedding_explorer`, che mostra le mappe anatomiche dei due cluster nati da ogni divisione dell'albero.
 
 | Notebook | Scope | Domanda | Legge | Scrive |
 |---|---|---|---|---|
-| `clustering_comparison` | empirica, **più** run (le parti 2 e 4 portano anche variabili esterne) | in cosa differiscono queste run? (accordo tra partizioni, corrispondenza dei cluster, confronto cross-modalità lesion/sdc sull'intersezione dei soggetti con il profilo clinico/demografico dei cluster, distanze tra cluster nell'embedding, confronto di due cluster della stessa run con dati clinici e mappa di differenza) | le run scelte, `participants.csv` (profilo clinico e parte 4), i file delle lesioni (mappa di differenza della parte 4) | nulla |
 | `dendrogram_embedding_explorer` | interpretativa, **una** run di tuning agglomerative | passando da k-1 a k cluster quale cluster si divide, dove stanno i due pezzi nell'embedding e che anatomia hanno (sovrapposizione delle lesioni o disconnessione, a scelta con `MAP_MODALITY`)? | la run di tuning (`config.md`, `metadata.csv`, `clusterings.npz`), l'embedding 2D di `input_path`, i file dei soggetti su disco | nulla (cache delle mappe condivisa con l'app, `results/cache/binary_masks`) |
+| `clustering_validation` | empirica, **un** embedding UMAP con più k dell'agglomerative | quanto i cluster resistono se si cambiano i soggetti (sottocampione dell'80%) o il seme di UMAP? ARI sull'intera partizione e Jaccard per cluster, contro le run di riferimento | la matrice SDC (distanze euclidee), la run UMAP di produzione e le run di clustering di riferimento (`config.md`, `matrix.npy`, `metadata.csv`) | nulla |
 | `pca_evaluation` | valutazione di **una** PCA, di produzione o di tuning (una combinazione) | quante componenti tenere (varianza cumulata), quanta varianza spiega ogni componente ruotata, quanto dipende ciascuna dal volume e dal lato della lesione, dove sta nel cervello (mappe *t* e riproducibilità tra metà), come separa i soggetti (embedding) | la run (`matrix.npy`/`embeddings.npz`, `eigenvalues.npy`/`.npz`, `metadata.csv`, `config.md`), la matrice su cui la PCA è stata calcolata (sezioni 4 e 6), `participants.csv` | solo la cache delle mappe in `results/cache/component_maps`, la stessa dell'app |
 
 **`pca_evaluation`: sezioni e parametri.** Il notebook non sceglie il numero di componenti: mostra i dati per sceglierlo. Una sezione che non si applica alla run scelta lo dice e salta.
@@ -202,7 +202,23 @@ I parametri da modificare sono `RUN_PATH` (cartella della run, di produzione o d
 
 **`dendrogram_embedding_explorer`.** Segue l'agglomerative k dopo k su un tuning già eseguito: per ogni k un cluster si divide in due, e il notebook mostra albero ed embedding (un colore per cluster) e la mappa anatomica dei due figli. Non rifà nessun tuning: ricalcola solo l'albero sull'embedding 2D e verifica che coincida con le etichette salvate (ARI = 1, altrimenti si ferma). Parametri e lettura: [`evaluate_clustering_tuning.md`](evaluate_clustering_tuning.md).
 
-Guida del notebook di confronto, e dove vive ogni analisi (la valutazione di una run alla volta è nell'app Dash): [`evaluation.md`](evaluation.md).
+**`clustering_validation`.** Stabilità al ricampionamento dei soggetti (Hennig 2007, Monti et al. 2003; vedi [`evaluation_metrics.md`](../../knowledge/notes/dim_reduction_clustering/clustering_methods/evaluation_metrics.md), §7). Parametri in testa al notebook: `RUNS` (k → cartella della run di clustering di riferimento), `FRACTION` (0.8), `N_REPEATS` (50), `SEED`.
+
+Le distanze euclidee fra i soggetti si calcolano una volta sola e ogni rifacimento della mappa ne riusa un blocco. Tre esperimenti, ognuno confrontato con le etichette della run di riferimento (il secondo con sé stesso):
+
+| Esperimento | Soggetti | Mappa | Confronto contro |
+|---|---|---|---|
+| 1a mappa fissa | 80% | quella di produzione, non rifatta | clustering di riferimento |
+| 1b mappa ricalcolata | 80% | UMAP rifatto sull'80%, seme 0 | clustering di riferimento |
+| 2 solo il seme, sull'80% | 80%, gli stessi nelle due mappe | UMAP rifatto con i semi 1 e 2 | le due mappe fra loro |
+| 3 solo il seme, su tutti | tutti | UMAP rifatto con i semi 1-20 | clustering di riferimento (seme 0) |
+
+- **Misure**: ARI sull'intera partizione e Jaccard di ogni cluster con il suo miglior corrispondente, riassunti da media, deviazione standard e minimo. Nessuna soglia.
+- **Perché 1a è un limite superiore**: con la mappa fissa UMAP ha già visto anche i soggetti tolti, e le coordinate di chi resta ne portano la traccia. 2 e 3 isolano il seme, a soggetti invariati.
+- **Controlli**: la mappa rifatta sull'intera matrice deve coincidere con quella di produzione e il ward sulle sue coordinate deve dare ARI = 1 con le etichette salvate; `compare` si ferma se la partizione di riferimento ha meno di 2 cluster.
+- **Limiti**: l'ARI dipende da k, quindi non ordina i k; i semi provati sono 20 e 2, non tutti.
+
+Dove vive ogni analisi (la valutazione di una run alla volta è nell'app Dash): [`evaluation.md`](evaluation.md).
 
 ---
 
