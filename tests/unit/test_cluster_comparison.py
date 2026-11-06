@@ -7,6 +7,8 @@ import pytest
 
 from src.analysis.cluster_comparison import (
     AGREEMENT_METRICS,
+    PAIR_COUNTING_METRICS,
+    PairCounts,
     agreement_level,
     agreement_metrics,
     align_runs,
@@ -15,6 +17,9 @@ from src.analysis.cluster_comparison import (
     cluster_centroids,
     cluster_name,
     contingency_tables,
+    external_indices,
+    noise_as_singletons,
+    pair_counts,
     purity_table,
 )
 
@@ -89,6 +94,86 @@ def test_b_finer_than_a_swaps_homogeneity_and_completeness():
 
     assert metrics["completeness"] == pytest.approx(1.0)
     assert metrics["homogeneity"] < 1.0
+
+
+# Slide 62 of Bicego's L4b: U = {1,2,4} | {3,5,6}. V = {1,2} | {3,4,5,6} is made up, so the numbers
+# below are worked out by hand: of the 15 pairs, 4 are together in both, 2 only in U, 3 only in V.
+_SLIDE_U = np.array([0, 0, 1, 0, 1, 1])
+_SLIDE_V = np.array([0, 0, 1, 1, 1, 1])
+
+
+def test_pair_counts_on_the_worked_example():
+    assert pair_counts(_SLIDE_U, _SLIDE_V) == PairCounts(a=4, b=2, c=3, d=6)
+    assert pair_counts(_SLIDE_U, _SLIDE_V).total == 15
+
+
+def test_external_indices_on_the_worked_example():
+    indices = external_indices(_SLIDE_U, _SLIDE_V)
+
+    assert list(indices) == list(PAIR_COUNTING_METRICS)
+    assert indices["Jaccard"] == pytest.approx(4 / 9)
+    assert indices["Fowlkes-Mallows"] == pytest.approx(4 / np.sqrt(6 * 7))
+    assert indices["Gamma"] == pytest.approx((15 * 4 - 6 * 7) / np.sqrt(6 * 7 * 9 * 8))
+
+
+def test_ari_of_agreement_metrics_on_the_worked_example():
+    # Hubert-Arabie in pair counts: 2(ad - bc) / ((a+b)(b+d) + (a+c)(c+d))
+    assert agreement_metrics(_SLIDE_U, _SLIDE_V)["ARI"] == pytest.approx(2 * (4 * 6 - 2 * 3) / (6 * 8 + 7 * 9))
+
+
+def test_external_indices_are_symmetric():
+    forward, backward = external_indices(_SLIDE_U, _SLIDE_V), external_indices(_SLIDE_V, _SLIDE_U)
+
+    assert forward == pytest.approx(backward)
+
+
+def test_identical_partitions_with_renamed_labels_score_one_on_every_pair_counting_index():
+    indices = external_indices(np.array([0, 0, 1, 1, 2, 2]), np.array([2, 2, 0, 0, 1, 1]))
+
+    assert all(value == pytest.approx(1.0) for value in indices.values())
+
+
+def test_noise_subjects_are_never_counted_as_together():
+    # A has two noise subjects, B groups them. As a group of their own the pair would be "together" in
+    # both and the runs would look identical (Jaccard 1); as singletons only (s2, s3) is together in both.
+    labels_a = np.array([-1, -1, 0, 0])
+    labels_b = np.array([0, 0, 1, 1])
+
+    indices = external_indices(labels_a, labels_b)
+
+    assert pair_counts(noise_as_singletons(labels_a), labels_b) == PairCounts(a=1, b=0, c=1, d=4)
+    assert indices["Jaccard"] == pytest.approx(1 / 2)
+
+
+def test_noise_as_singletons_keeps_the_other_labels_and_gives_each_noise_subject_a_free_label():
+    relabeled = noise_as_singletons(np.array([-1, 0, 1, -1, 1]))
+
+    assert relabeled.tolist()[1:3] == [0, 1] and relabeled[4] == 1
+    assert len({int(relabeled[0]), int(relabeled[3]), 0, 1}) == 4
+
+
+def test_noise_as_singletons_on_a_run_of_only_noise_gives_every_subject_its_own_label():
+    assert len(set(noise_as_singletons(np.array([-1, -1, -1])).tolist())) == 3
+
+
+@pytest.mark.parametrize(
+    "labels_a, labels_b, message",
+    [
+        ([0, 0, 0, 0], [0, 0, 1, 1], "run A puts every subject in one cluster"),
+        ([0, 0, 1, 1], [0, 1, 2, 3], "run B leaves every subject alone"),
+        ([-1, -1, -1, -1], [0, 0, 1, 1], "run A leaves every subject alone"),
+    ],
+)
+def test_external_indices_on_a_degenerate_partition_raise(labels_a, labels_b, message):
+    with pytest.raises(ValueError, match=message):
+        external_indices(np.array(labels_a), np.array(labels_b))
+
+
+def test_pair_counts_rejects_vectors_of_different_length_and_a_single_subject():
+    with pytest.raises(ValueError, match="differ in length"):
+        pair_counts(np.array([0, 1, 1]), np.array([0, 1]))
+    with pytest.raises(ValueError, match="at least 2 subjects"):
+        pair_counts(np.array([0]), np.array([0]))
 
 
 @pytest.mark.parametrize(

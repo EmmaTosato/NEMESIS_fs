@@ -7,13 +7,15 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
-from hypothesis import given, settings
+from hypothesis import assume, given, settings
 from hypothesis import strategies as st
+from sklearn.metrics import fowlkes_mallows_score
 
 from src.analysis.cluster_comparison import (
     AGREEMENT_LEVELS,
     AGREEMENT_METRICS,
     AGREEMENT_SCALE,
+    PAIR_COUNTING_METRICS,
     agreement_level,
     agreement_metrics,
     align_runs,
@@ -21,6 +23,9 @@ from src.analysis.cluster_comparison import (
     cluster_centroids,
     cluster_name,
     contingency_tables,
+    external_indices,
+    noise_as_singletons,
+    pair_counts,
     purity_table,
 )
 
@@ -107,6 +112,94 @@ def test_degenerate_partitions_are_finite(n):
 def test_the_noise_label_is_a_group_like_any_other():
     a = np.array([-1, -1, 0, 0, 1, 1])
     assert agreement_metrics(a, a + 10)["ARI"] == pytest.approx(1.0)  # il rumore rinominato non cambia nulla
+
+
+# --- noise_as_singletons, pair_counts, external_indices ----------------------------------------
+
+
+def _together(labels: np.ndarray) -> np.ndarray:
+    """0/1 indicator of "together" for the unordered pairs (i < j), after the noise became singletons."""
+    relabeled = noise_as_singletons(labels)
+    rows, columns = np.triu_indices(len(relabeled), k=1)
+    return (relabeled[rows] == relabeled[columns]).astype(int)
+
+
+def _is_degenerate(labels: np.ndarray) -> bool:
+    return len(set(noise_as_singletons(labels).tolist())) in (1, len(labels))
+
+
+@given(st.lists(st.sampled_from(_LABEL_POOL), min_size=0, max_size=40))
+def test_noise_as_singletons_only_touches_the_noise(labels):
+    labels = np.array(labels, dtype=int)
+    relabeled = noise_as_singletons(labels)
+    noise = labels == -1
+    assert (relabeled[~noise] == labels[~noise]).all()
+    assert len(set(relabeled[noise].tolist())) == int(noise.sum())
+    assert not set(relabeled[noise].tolist()) & set(labels[~noise].tolist())
+
+
+@given(_label_pair())
+def test_pair_counts_match_a_brute_force_count_over_the_pairs(pair):
+    a, b = pair
+    together_a, together_b = _together(a), _together(b)
+    counts = pair_counts(noise_as_singletons(a), noise_as_singletons(b))
+    assert counts.a == int((together_a & together_b).sum())
+    assert counts.b == int((together_a & (1 - together_b)).sum())
+    assert counts.c == int(((1 - together_a) & together_b).sum())
+    assert counts.d == int(((1 - together_a) & (1 - together_b)).sum())
+    assert counts.total == len(a) * (len(a) - 1) // 2
+
+
+@given(_label_pair())
+def test_external_indices_are_symmetric_and_inside_their_ranges(pair):
+    a, b = pair
+    assume(not _is_degenerate(a) and not _is_degenerate(b))
+    forward, backward = external_indices(a, b), external_indices(b, a)
+    assert tuple(forward) == PAIR_COUNTING_METRICS
+    for name in PAIR_COUNTING_METRICS:
+        assert forward[name] == pytest.approx(backward[name], abs=1e-12)
+    assert -1e-12 <= forward["Jaccard"] <= 1.0 + 1e-12
+    assert -1e-12 <= forward["Fowlkes-Mallows"] <= 1.0 + 1e-12
+    assert -1.0 - 1e-12 <= forward["Gamma"] <= 1.0 + 1e-12
+
+
+@given(_label_pair(), st.integers(0, 10_000), st.integers(0, 10_000))
+def test_external_indices_do_not_depend_on_how_the_clusters_are_named(pair, seed_a, seed_b):
+    a, b = pair
+    assume(not _is_degenerate(a) and not _is_degenerate(b))
+    base = external_indices(a, b)
+    # the noise stays -1 (it is not a name): only the real clusters are renamed
+    renamed = external_indices(
+        np.where(a == -1, -1, _rename(np.where(a == -1, 0, a), seed_a) + 1000),
+        np.where(b == -1, -1, _rename(np.where(b == -1, 0, b), seed_b) + 1000),
+    )
+    for name in PAIR_COUNTING_METRICS:
+        assert renamed[name] == pytest.approx(base[name], abs=1e-12)
+
+
+@given(_label_pair(min_size=3))
+def test_jaccard_gamma_and_fowlkes_mallows_agree_with_independent_computations(pair):
+    """Jaccard and Gamma from the 0/1 pair indicators (Gamma is their Pearson correlation), Fowlkes-Mallows
+    from scikit-learn: none of the three goes through the code under test."""
+    a, b = pair
+    assume(not _is_degenerate(a) and not _is_degenerate(b))
+    together_a, together_b = _together(a), _together(b)
+    indices = external_indices(a, b)
+    assert indices["Jaccard"] == pytest.approx((together_a & together_b).sum() / (together_a | together_b).sum())
+    assert indices["Gamma"] == pytest.approx(np.corrcoef(together_a, together_b)[0, 1], abs=1e-9)
+    assert indices["Fowlkes-Mallows"] == pytest.approx(
+        fowlkes_mallows_score(noise_as_singletons(a), noise_as_singletons(b)), abs=1e-9
+    )
+
+
+@given(_label_pair())
+def test_external_indices_either_return_finite_values_or_raise_for_a_degenerate_partition(pair):
+    a, b = pair
+    if _is_degenerate(a) or _is_degenerate(b):
+        with pytest.raises(ValueError, match="undefined"):
+            external_indices(a, b)
+        return
+    assert all(np.isfinite(v) for v in external_indices(a, b).values())
 
 
 # --- contingency_tables ------------------------------------------------------------------------

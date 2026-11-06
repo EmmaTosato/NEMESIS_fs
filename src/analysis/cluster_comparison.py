@@ -10,10 +10,15 @@ Which pairs of runs may be compared at all (same method and parameters on two mo
 decided by src.analysis.embedding_app, which knows the run layout; this module only receives the
 two runs' metadata and never reads from disk. The only registry read is the demographic profile,
 which lives in cluster_description.py.
+
+The pair-counting external indices (ARI from agreement_metrics; Jaccard, Fowlkes-Mallows and Gamma from
+external_indices) compare two whole partitions of the same subjects. They are symmetric, so neither run
+is a reference, and they say how much two clusterings agree, not which one is right.
 """
 
 from __future__ import annotations
 
+import math
 from bisect import bisect_right
 from dataclasses import dataclass
 
@@ -27,6 +32,7 @@ from sklearn.metrics import (
     homogeneity_score,
     normalized_mutual_info_score,
 )
+from sklearn.metrics.cluster import pair_confusion_matrix
 
 from src.analysis.embedding_coloring import COLOR_MODES
 from src.analysis.partition_shape import NOISE_LABEL
@@ -51,6 +57,7 @@ _CELL_HEIGHT = 56
 _FIGURE_MARGIN_HEIGHT = 150
 
 AGREEMENT_METRICS: tuple[str, ...] = ("ARI", "NMI", "homogeneity", "completeness")
+PAIR_COUNTING_METRICS: tuple[str, ...] = ("Jaccard", "Fowlkes-Mallows", "Gamma")
 
 # Reading scale for the two metrics that have one: upper bounds of the first four levels (a value
 # equal to a bound belongs to the level above it). Homogeneity and completeness have no scale -
@@ -96,6 +103,21 @@ class ContingencyTables:
     counts: pd.DataFrame
     row_pct: pd.DataFrame
     col_pct: pd.DataFrame
+
+
+@dataclass(frozen=True)
+class PairCounts:
+    """Pairs of subjects by how two partitions A and B treat them: `a` together in both, `b` together
+    only in A, `c` together only in B, `d` apart in both (Bicego's a, b, c, d)."""
+
+    a: int
+    b: int
+    c: int
+    d: int
+
+    @property
+    def total(self) -> int:
+        return self.a + self.b + self.c + self.d
 
 
 @dataclass(frozen=True)
@@ -180,6 +202,61 @@ def agreement_level(metric: str, value: float) -> str | None:
     if metric not in AGREEMENT_SCALE:
         return None
     return AGREEMENT_LEVELS[bisect_right(AGREEMENT_SCALE[metric], value)]
+
+
+def noise_as_singletons(labels: np.ndarray) -> np.ndarray:
+    """Give every noise subject (-1) a label of its own. Pair counting would otherwise count each pair
+    of noise subjects as "together", inventing a similarity between subjects hdbscan assigned to no
+    cluster."""
+    labels = np.asarray(labels)
+    noise = labels == NOISE_LABEL
+    relabeled = labels.copy()
+    first_free = int(labels.max()) + 1 if labels.size else 0
+    relabeled[noise] = np.arange(first_free, first_free + int(noise.sum()))
+    return relabeled
+
+
+def pair_counts(labels_a: np.ndarray, labels_b: np.ndarray) -> PairCounts:
+    """a, b, c, d over the unordered pairs of subjects. Labels are taken as they are (a -1 is a cluster
+    like any other here: see noise_as_singletons). Raises ValueError for vectors of different length
+    or fewer than 2 subjects, where there are no pairs."""
+    if len(labels_a) != len(labels_b):
+        raise ValueError(f"the two label vectors differ in length: {len(labels_a)} vs {len(labels_b)}")
+    if len(labels_a) < 2:
+        raise ValueError(f"pair counting needs at least 2 subjects, got {len(labels_a)}")
+    matrix = pair_confusion_matrix(labels_a, labels_b)
+    # sklearn counts ordered pairs, so every cell is twice the number of pairs. With A as "true" and B as
+    # "predicted": [1,1] together in both, [1,0] together in A only, [0,1] in B only, [0,0] apart in both.
+    return PairCounts(
+        a=int(matrix[1, 1]) // 2, b=int(matrix[1, 0]) // 2, c=int(matrix[0, 1]) // 2, d=int(matrix[0, 0]) // 2
+    )
+
+
+def external_indices(labels_a: np.ndarray, labels_b: np.ndarray) -> dict[str, float]:
+    """Jaccard, Fowlkes-Mallows and Gamma between two partitions of the same subjects, in
+    PAIR_COUNTING_METRICS order (Bicego, L4b slides 61-66). The ARI, which replaces the Rand index, is not
+    here: agreement_metrics already computes it. Every noise subject (-1) counts as a cluster of one.
+
+    With m1 = a+b and m2 = a+c the pairs together in A and in B, and M the total: Jaccard = a/(a+b+c),
+    Fowlkes-Mallows = a/sqrt(m1 m2), Gamma = (M a - m1 m2)/sqrt(m1 m2 (M-m1)(M-m2)) (the correlation
+    between the two 0/1 pair matrices, from -1 to 1). All three are symmetric in A and B.
+
+    Raises ValueError if either partition puts every subject in one cluster or every subject alone
+    (noise included): Gamma has a zero denominator there and the others stop meaning agreement."""
+    labels_a, labels_b = noise_as_singletons(labels_a), noise_as_singletons(labels_b)
+    counts = pair_counts(labels_a, labels_b)
+    total, together_a, together_b = counts.total, counts.a + counts.b, counts.a + counts.c
+    for name, together in (("A", together_a), ("B", together_b)):
+        if together == total:
+            raise ValueError(f"run {name} puts every subject in one cluster: the indices are undefined")
+        if together == 0:
+            raise ValueError(f"run {name} leaves every subject alone (noise included): the indices are undefined")
+    gamma_denominator = math.sqrt(together_a * together_b * (total - together_a) * (total - together_b))
+    return {
+        "Jaccard": counts.a / (counts.a + counts.b + counts.c),
+        "Fowlkes-Mallows": counts.a / math.sqrt(together_a * together_b),
+        "Gamma": (total * counts.a - together_a * together_b) / gamma_denominator,
+    }
 
 
 def chi_square_independence(counts: pd.DataFrame) -> ChiSquareResult:
